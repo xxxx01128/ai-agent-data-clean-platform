@@ -1,0 +1,21 @@
+﻿file,before,after,source,time
+Dim_Branch.csv,30,30,,
+Dim_Customer.csv,20000,20000,,
+Dim_FinProduct.csv,50,50,,
+Fact_Application.csv,80000,80000,,
+Fact_Transaction.csv,240000,240000,,
+Dim_Customer.csv,20000,20000,Dim_Customer.csv,2026-11-04 14:01:54
+Dim_Branch.csv,30,30,Dim_Branch.csv,2026-11-04 14:02:35
+Dim_Branch.csv,30,30,test_Dim_Branch_upload.csv,2026-11-04 14:05:19
+Dim_FinProduct.csv,50,50,test_Dim_FinProduct_upload.csv,2026-11-04 14:05:33
+Dim_Branch.csv,30,30,Dim_Branch.csv,2026-11-04 14:06:49
+Dim_Customer.csv,20000,20000,Dim_Customer.csv,2026-11-04 14:06:51
+Dim_FinProduct.csv,50,50,Dim_FinProduct.csv,2026-11-04 14:06:51
+Fact_Application.csv,80000,80000,Fact_Application.csv,2026-11-04 14:06:55
+Fact_Transaction.csv,240000,240000,Fact_Transaction.csv,2026-11-04 14:06:57
+Dim_Customer.csv,5000,5000,Dim_Customer_test5000.csv,2026-11-04 15:10:59
+Dim_Branch.csv,30,30,Dim_Branch.csv,2026-11-04 15:36:10
+Dim_Customer.csv,20000,20000,Dim_Customer.csv,2026-11-04 15:36:12
+Dim_FinProduct.csv,50,50,Dim_FinProduct.csv,2026-11-04 15:36:12
+Fact_Application.csv,80000,80000,Fact_Application.csv,2026-11-04 15:36:16
+Fact_Transaction.csv,240000,240000,Fact_Transaction.csv,2026-11-04 15:36:18
