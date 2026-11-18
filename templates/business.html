@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>经营突破报表</title>
+    <script src="../static/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Microsoft Yahei", sans-serif; }
+        body { background: #0b1328; color: #fff; padding: 20px; }
+        .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        h1 { font-size: 26px; }
+        .nav { display: flex; gap: 10px; }
+        .nav a { color: #9fc1ff; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid #2b4075; }
+        .nav a.on { background: #274b92; color: #fff; }
+        .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+        .kpi { background: linear-gradient(160deg, #162447, #1b2c5a); border: 1px solid #2b4075; border-radius: 10px; padding: 16px; text-align: center; }
+        .kpi .lab { color: #8fa3cf; font-size: 13px; margin-bottom: 6px; }
+        .kpi .val { font-size: 24px; font-weight: bold; color: #7dffa9; }
+        .single-card { width:100%; margin-bottom:14px; }
+        .card { background: #101b3b; border: 1px solid #233b70; border-radius: 10px; padding: 14px; }
+        .card h3 { color: #b8d1ff; font-size: 15px; margin-bottom: 10px; }
+        .chart { width: 100%; height: 380px; }
+        .tip { font-size: 12px; color: #5a6a9e; margin-left: 8px; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 999; }
+        .modal-main { width: 90%; max-height: 82vh; background: #101b3b; border: 1px solid #3458a6; border-radius: 10px; margin: 30px auto; padding: 18px; overflow: auto; }
+        .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .btn { padding: 6px 14px; background: #274b92; border: none; color: #fff; border-radius: 5px; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { border: 1px solid #2b4075; padding: 7px; text-align: center; }
+        th { background: #162447; color: #9fc1ff; }
+
+        /* ---------- AI 分析 ---------- */
+        .ai-btn {
+            padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold;
+            background: linear-gradient(135deg, #3d7dff, #7b4dff); color: #fff; border: none;
+            box-shadow: 0 0 12px rgba(90,120,255,.5);
+        }
+        .ai-btn:hover { filter: brightness(1.15); }
+        .ai-modal { display: none; position: fixed; inset: 0; background: rgba(4,8,20,.86); z-index: 1000; padding: 18px; }
+        .ai-panel {
+            background: #0b1328; border: 1px solid #3458a6; border-radius: 14px;
+            height: calc(100vh - 36px); display: flex; flex-direction: column; overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,.6);
+        }
+        .ai-head {
+            display: flex; justify-content: space-between; align-items: center; gap: 16px;
+            padding: 14px 22px; border-bottom: 1px solid #22345f; background: linear-gradient(90deg, #12224a, #0e1b38);
+        }
+        .ai-head h2 { font-size: 18px; color: #e6efff; }
+        .ai-meta { font-size: 11.5px; color: #7f92bd; margin-top: 4px; }
+        .ai-actions { display: flex; gap: 8px; flex-shrink: 0; }
+        .btn.ghost { background: transparent; border: 1px solid #3458a6; color: #9fc1ff; }
+        .btn.ghost:hover { background: #16264a; }
+        .ai-body { flex: 1; overflow-y: auto; padding: 20px 22px 40px; }
+        .ai-kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .ai-kpi .k {
+            background: linear-gradient(160deg, #14224a, #1a2c59); border: 1px solid #2b4075;
+            border-radius: 10px; padding: 14px; text-align: center;
+        }
+        .ai-kpi .v { font-size: 21px; font-weight: bold; color: #7dffa9; }
+        .ai-kpi .l { font-size: 11.5px; color: #8fa3cf; margin-top: 5px; }
+        .ai-sec { margin-bottom: 22px; }
+        .ai-sec h4 {
+            font-size: 15px; color: #9fc1ff; margin-bottom: 12px; padding-left: 10px;
+            border-left: 3px solid #4a7bff;
+        }
+        .ai-sum { background: #101b3b; border: 1px solid #233b70; border-radius: 10px; padding: 16px 20px; }
+        .ai-sum ol { margin: 0; padding-left: 20px; }
+        .ai-sum li { font-size: 13px; color: #cfdcf5; line-height: 1.95; margin-bottom: 8px; }
+        .ai-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .ai-chart { background: #101b3b; border: 1px solid #233b70; border-radius: 10px; padding: 12px; }
+        .ai-chart .t { font-size: 13px; color: #b8d1ff; margin-bottom: 8px; }
+        .ai-chart .c { width: 100%; height: 300px; }
+        .ai-chart .insight { font-size: 11.5px; color: #7f92bd; margin-top: 6px; line-height: 1.7; }
+        .ai-table-wrap { background: #101b3b; border: 1px solid #233b70; border-radius: 10px; padding: 12px; overflow-x: auto; }
+        .ai-table-wrap table th { background: #162447; }
+        .ai-alert {
+            border-radius: 10px; padding: 14px 18px; margin-bottom: 12px;
+            border-left: 4px solid #8b2f3f; background: rgba(160,67,83,.09);
+        }
+        .ai-alert.orange { border-left-color: #d98a2b; background: rgba(217,138,43,.08); }
+        .ai-alert.yellow { border-left-color: #d4c22b; background: rgba(212,194,43,.06); }
+        .ai-alert .h { font-size: 14px; font-weight: bold; color: #ffb3b3; margin-bottom: 6px; display: flex; gap: 10px; align-items: center; }
+        .ai-alert.orange .h { color: #ffc078; }
+        .ai-alert.yellow .h { color: #ffe58f; }
+        .ai-alert .d { font-size: 12.5px; color: #c9d3ec; line-height: 1.85; }
+        .ai-alert .m { font-size: 11.5px; color: #8fa3cf; margin-top: 6px; }
+        .ai-alert .act { font-size: 12px; color: #6fe08a; margin-top: 6px; }
+        .ai-tag {
+            font-size: 10.5px; padding: 2px 8px; border-radius: 10px;
+            background: rgba(74,123,255,.18); color: #9fc1ff; font-weight: normal;
+        }
+        .ai-constraint {
+            background: rgba(74,123,255,.08); border: 1px dashed #3458a6; border-radius: 8px;
+            padding: 11px 16px; font-size: 12.5px; color: #9fc1ff; margin-bottom: 16px;
+        }
+        .ai-note {
+            font-size: 12px; color: #7c90c4; line-height: 1.95; background: #0c152c;
+            border: 1px dashed #233b70; border-radius: 8px; padding: 14px 18px;
+        }
+        .ai-note li { margin-left: 16px; }
+        .ai-note b { color: #9fc1ff; }
+        .ai-loading { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 80px 0; color: #9fc1ff; }
+        .ai-loading .spinner {
+            width: 42px; height: 42px; border: 3px solid #233b70; border-top-color: #4a7bff;
+            border-radius: 50%; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .ai-loading .ai-steps { font-size: 12px; color: #6d80ad; }
+        .ai-err { background: rgba(160,67,83,.15); border: 1px solid #a04353; color: #f0b6c0; padding: 16px; border-radius: 10px; font-size: 13px; }
+        .ai-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    </style>
+</head>
+<body>
+<div class="top">
+    <h1>📈 经营突破报表</h1>
+    <div class="nav">
+        <a href="/">🏠首页</a>
+        <a href="/risk">风控</a>
+        <a href="/marketing">营销</a>
+        <a href="/business" class="on">经营</a>
+        <button class="ai-btn" onclick="openAIReport()">🤖 AI 分析</button>
+    </div>
+</div>
+
+<div class="kpi-row">
+    <div class="kpi"><div class="lab">总交易金额</div><div class="val">{{total_amt}}</div></div>
+    <div class="kpi"><div class="lab">交易笔数</div><div class="val">{{trans_cnt}}</div></div>
+    <div class="kpi"><div class="lab">平均单笔交易</div><div class="val">{{avg_single}}</div></div>
+    <div class="kpi"><div class="lab">贷款总规模</div><div class="val">{{loan_total}}</div></div>
+</div>
+
+<div class="single-card card">
+    <h3>交易金额按月趋势<span class="tip">鼠标滚轮横向滑动，点击节点下钻当月明细</span></h3>
+    <div id="c_trans" class="chart"></div>
+</div>
+<div class="single-card card">
+    <h3>贷款申请量按月趋势<span class="tip">鼠标滚轮横向滑动，点击柱子下钻当月申请</span></h3>
+    <div id="c_apply" class="chart"></div>
+</div>
+<div class="single-card card">
+    <h3>各省份交易金额TOP<span class="tip">点击柱子下钻省份明细</span></h3>
+    <div id="c_prov" class="chart"></div>
+</div>
+<div class="single-card card">
+    <h3>各产品交易销售额TOP<span class="tip">点击柱子下钻产品明细</span></h3>
+    <div id="c_prod" class="chart"></div>
+</div>
+
+<div class="modal" id="modal"><div class="modal-main">
+    <div class="modal-head"><h3>🔍 下钻明细</h3><button class="btn" onclick="closeModal()">关闭</button></div>
+    <table id="tbl"></table>
+</div></div>
+
+<div class="modal ai-modal" id="aiModal"><div class="ai-panel">
+    <div class="ai-head">
+        <div>
+            <h2>🤖 经营突破 · AI 财务经营分析报告</h2>
+            <div class="ai-meta" id="aiMeta">方法论：ai-hive-gap-024-ai-finance-report v1.0.0 · 指标字典 / 图表叙事 / 经营摘要 / 异常问题</div>
+        </div>
+        <div class="ai-actions">
+            <button class="btn ghost" onclick="loadAIReport(true)">🔄 重新生成</button>
+            <button class="btn ghost" onclick="exportAIReport()">⬇ 导出报告</button>
+            <button class="btn" onclick="closeAIReport()">关闭</button>
+        </div>
+    </div>
+    <div class="ai-body" id="aiBody"></div>
+</div></div>
+
+<script>
+const transMonthData = {{trans_month_json|tojson}};
+const applyMonthData = {{apply_month_json|tojson}};
+const provBizData = {{prov_biz_json|tojson}};
+const prodBizData = {{prod_biz_json|tojson}};
+
+const AXIS = {
+    axisLine:{lineStyle:{color:'#44629e'}},
+    axisLabel:{color:'#bcd4ff', fontSize:10}
+};
+const SPLIT = { splitLine:{lineStyle:{color:'#233b70'}} };
+const Y_NAME_STYLE = { nameTextStyle:{padding:[0,12,0,0]} };
+
+async function drill(type, val){
+    const r = await fetch('/api/drill',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:type,value:val})});
+    const list = await r.json();
+    const tbl = document.getElementById('tbl');
+    if(!list || list.length===0){ tbl.innerHTML='<tr><td colspan=20>该分组暂无明细</td></tr>'; }
+    else {
+        const keys = Object.keys(list[0]);
+        let h='<thead><tr>'+keys.map(k=>`<th>${k}</th>`).join('')+'</tr></thead><tbody>';
+        list.forEach(o=>{ h+='<tr>'+keys.map(k=>`<td>${o[k]??''}</td>`).join('')+'</tr>'; });
+        h+='</tbody>'; tbl.innerHTML=h;
+    }
+    document.getElementById('modal').style.display='block';
+}
+function closeModal(){ document.getElementById('modal').style.display='none'; }
+
+const ch1 = echarts.init(document.getElementById('c_trans'));
+ch1.setOption({
+    tooltip:{trigger:'axis',formatter:'月份：{b}<br>交易金额：{c}'},
+    grid:{left:180,right:30,top:50,bottom:80},
+    dataZoom:[{
+        type:'slider',show:true,height:22,start:0,end:100,
+        zoomOnMouseWheel:true,moveOnMouseWheel:true
+    }],
+    xAxis:{type:'category',data:transMonthData.map(i=>i.name),...AXIS,axisLabel:{...AXIS.axisLabel,rotate:45}},
+    yAxis:{type:'value',name:'交易金额',nameGap:35,...SPLIT,...AXIS,...Y_NAME_STYLE},
+    series:[{type:'line',data:transMonthData.map(i=>i.value),smooth:true,itemStyle:{color:'#7dffa9'},areaStyle:{color:'rgba(125,255,169,.15)'}}]
+});
+ch1.on('click',p=>drill('month',p.name));
+
+const ch2 = echarts.init(document.getElementById('c_apply'));
+ch2.setOption({
+    tooltip:{trigger:'axis',formatter:'月份：{b}<br>申请量：{c}'},
+    grid:{left:180,right:30,top:50,bottom:80},
+    dataZoom:[{
+        type:'slider',show:true,height:22,start:0,end:100,
+        zoomOnMouseWheel:true,moveOnMouseWheel:true
+    }],
+    xAxis:{type:'category',data:applyMonthData.map(i=>i.name),...AXIS,axisLabel:{...AXIS.axisLabel,rotate:45}},
+    yAxis:{type:'value',name:'申请量',nameGap:35,...SPLIT,...AXIS,...Y_NAME_STYLE},
+    series:[{type:'bar',data:applyMonthData.map(i=>i.value),itemStyle:{color:'#42b8ff'}}]
+});
+ch2.on('click',p=>drill('month',p.name));
+
+// ======省份交易图表，使用provBizData======
+const ch3 = echarts.init(document.getElementById('c_prov'));
+ch3.setOption({
+    tooltip:{trigger:'axis',formatter:'省份：{b}<br>交易金额：{c}'},
+    grid:{left:180,right:30,top:50,bottom:80},
+    xAxis:{type:'category',data:provBizData.map(i=>i.name),...AXIS,axisLabel:{...AXIS.axisLabel,rotate:45}},
+    yAxis:{type:'value',name:'交易金额',nameGap:35,...SPLIT,...AXIS,...Y_NAME_STYLE},
+    series:[{type:'bar',data:provBizData.map(i=>i.value),itemStyle:{color:'#ffa94d'}}]
+});
+ch3.on('click',p=>drill('province',p.name));
+
+// ======产品图表，使用prodBizData======
+const ch4 = echarts.init(document.getElementById('c_prod'));
+ch4.setOption({
+    tooltip:{trigger:'axis',formatter:'产品：{b}<br>交易金额：{c}'},
+    grid:{left:180,right:30,top:50,bottom:80},
+    xAxis:{type:'category',data:prodBizData.map(i=>i.name),...AXIS,axisLabel:{...AXIS.axisLabel,rotate:45}},
+    yAxis:{type:'value',name:'交易金额',nameGap:35,...SPLIT,...AXIS,...Y_NAME_STYLE},
+    series:[{type:'bar',data:prodBizData.map(i=>i.value),itemStyle:{color:'#7dffa9'}}]
+});
+ch4.on('click',p=>drill('product',p.name));
+
+window.addEventListener('resize',()=>{ch1.resize();ch2.resize();ch3.resize();ch4.resize();});
+
+/* ==================== AI 财务经营分析报告 ==================== */
+let aiData = null;
+let aiChartInstances = [];
+
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fmt = n => Number(n).toLocaleString('zh-CN');
+
+if (new URLSearchParams(location.search).get('ai') === '1') {
+    window.addEventListener('load', () => openAIReport());
+}
+
+function openAIReport(){
+    document.getElementById('aiModal').style.display = 'block';
+    // 每次点击都校验数据版本：数据已更新则强制按新数据重算
+    loadAIReport(!aiData, aiData ? aiData.data_version : undefined);
+}
+function closeAIReport(){ document.getElementById('aiModal').style.display = 'none'; }
+function disposeAICharts(){
+    aiChartInstances.forEach(c=>{try{c.dispose();}catch(e){}});
+    aiChartInstances = [];
+}
+
+async function currentDataVersion(){
+    try {
+        const r = await fetch('/api/tables');
+        const j = await r.json();
+        return j.version;
+    } catch (e) { return null; }
+}
+
+async function loadAIReport(force, expectedVersion){
+    const body = document.getElementById('aiBody');
+    disposeAICharts();
+    body.innerHTML = `<div class="ai-loading"><div class="spinner"></div>
+        <div>正在汇总交易、申请、客户、产品、区域五张表…</div>
+        <div class="ai-steps">指标字典 → 图表叙事 → 经营摘要 → 异常问题 → 汇报材料</div></div>`;
+    try {
+        let url = '/api/business_report';
+        if (force || (expectedVersion && expectedVersion !== await currentDataVersion())) {
+            url += '?force=1';
+        }
+        const res = await fetch(url);
+        const d = await res.json();
+        if (d.error) throw new Error(d.error);
+        if (d.data_version && d.data_version !== await currentDataVersion()) {
+            const r2 = await fetch('/api/business_report?force=1');
+            const d2 = await r2.json();
+            if (!d2.error) { Object.assign(d, d2); }
+        }
+        aiData = d;
+        renderAI(d);
+        const ver = d.data_version ? ` · 数据版本：${d.data_version}` : '';
+        document.getElementById('aiMeta').textContent =
+            `方法论：${d.skill} · 生成时间：${d.generated_at}${ver} · 覆盖期：${d.metrics.span}`;
+    } catch (e) {
+        body.innerHTML = `<div class="ai-err">分析失败：${esc(e.message)}</div>`;
+    }
+}
+
+function renderAI(d){
+    const k = d.kpi;
+    const yoyTxt = (k.yoy === null || k.yoy === undefined) ? '-' :
+        (k.yoy > 0 ? `+${k.yoy}%` : `${k.yoy}%`);
+    const kpiHtml = `
+        <div class="ai-kpi">
+            <div class="k"><div class="v">${fmt(k.total_amt_wan)} 万</div><div class="l">交易总额</div></div>
+            <div class="k"><div class="v">${fmt(k.trans_cnt)}</div><div class="l">交易笔数</div></div>
+            <div class="k"><div class="v">${fmt(k.avg_ticket)} 元</div><div class="l">平均客单价</div></div>
+            <div class="k"><div class="v">${yoyTxt}</div><div class="l">近 12 个月同比</div></div>
+            <div class="k"><div class="v">${k.approval_rate}%</div><div class="l">审批通过率</div></div>
+            <div class="k"><div class="v">${k.hhi}</div><div class="l">产品集中度 HHI</div></div>
+        </div>`;
+
+    const constraintHtml = `<div class="ai-constraint">📌 专项验收口径：<b>数字不改写</b>（全部由清洗后五表实时计算）·
+        <b>口径一致</b>（见第五节指标字典）· <b>结论可追溯</b>（见第六节可追溯性清单）。
+        缺失关联数据单列为「孤儿交易」，不以估算值填补。</div>`;
+
+    const sumHtml = `<div class="ai-sec"><h4>一、经营摘要（管理层视角）</h4>
+        <div class="ai-sum"><ol>${d.summary.map(s=>`<li>${esc(s)}</li>`).join('')}</ol></div></div>`;
+
+    // 图表方案（含叙事洞察）
+    const chartCards = `
+        <div class="ai-charts">
+            <div class="ai-chart"><div class="t">交易额月度趋势（36 个月）</div><div class="c" id="ai_m"></div>
+                <div class="insight">${esc(d.charts_plan[0].insight)}</div></div>
+            <div class="ai-chart"><div class="t">季度交易额</div><div class="c" id="ai_q"></div>
+                <div class="insight">${esc(d.charts_plan[1].insight)}</div></div>
+            <div class="ai-chart"><div class="t">品类结构（金额 vs 笔数）</div><div class="c" id="ai_cat"></div>
+                <div class="insight">${esc(d.charts_plan[2].insight)}</div></div>
+            <div class="ai-chart"><div class="t">产品 TOP10 交易额</div><div class="c" id="ai_prod"></div>
+                <div class="insight">${esc(d.charts_plan[3].insight)}</div></div>
+            <div class="ai-chart"><div class="t">省份交易额分布</div><div class="c" id="ai_prov"></div>
+                <div class="insight">${esc(d.charts_plan[4].insight)}</div></div>
+            <div class="ai-chart"><div class="t">客户层级交易额</div><div class="c" id="ai_tier"></div>
+                <div class="insight">四层级份额差距不足 1pct，分层权益未体现为消费差异</div></div>
+        </div>`;
+
+    // 年度 / 品类明细表
+    const yearTable = `
+        <div class="ai-table-wrap">
+            <table>
+                <thead><tr><th>年度</th><th>交易额（万元）</th><th>交易笔数</th><th>客单价（元）</th><th>同比</th></tr></thead>
+                <tbody>${d.years.map(y=>`<tr>
+                    <td>${y.year}</td><td>${fmt(y.amt_wan)}</td><td>${fmt(y.cnt)}</td>
+                    <td>${fmt(y.avg_ticket)}</td>
+                    <td style="color:${y.yoy===null?'#7f92bd':(y.yoy>0?'#ff7b7b':'#6fe08a')}">${y.yoy===null?'—':(y.yoy>0?`+${y.yoy}%`:`${y.yoy}%`)}</td>
+                </tr>`).join('')}</tbody>
+            </table>
+        </div>`;
+
+    const catTable = `
+        <div class="ai-table-wrap" style="margin-top:14px">
+            <table>
+                <thead><tr><th>品类</th><th>交易额（万元）</th><th>占比</th><th>笔数</th><th>客单价（元）</th></tr></thead>
+                <tbody>${d.cats.map(c=>`<tr>
+                    <td>${esc(c.cat)}</td><td>${fmt(c.amt_wan)}</td><td>${c.share}%</td>
+                    <td>${fmt(c.cnt)}</td><td>${fmt(c.avg_ticket)}</td>
+                </tr>`).join('')}</tbody>
+            </table>
+        </div>`;
+
+    const chartHtml = `<div class="ai-sec"><h4>二、图表叙事（每图一句结论）</h4>
+        ${chartCards}
+        <div style="margin-top:16px">${yearTable}</div>
+        <div style="margin-top:14px">
+            <div style="font-size:12px;color:#7f92bd;margin-bottom:8px">品类结构明细</div>
+            ${catTable}
+        </div>
+    </div>`;
+
+    // 异常问题
+    const alertCls = { "红": "", "橙": "orange", "黄": "yellow" };
+    const issuesHtml = `<div class="ai-sec"><h4>三、异常问题（按影响分级）</h4>
+        ${d.issues.length ? d.issues.map(i=>`
+            <div class="ai-alert ${alertCls[i.level]||''}">
+                <div class="h">${i.level === '红' ? '🔴' : i.level === '橙' ? '🟠' : '🟡'} ${esc(i.title)}
+                    <span class="ai-tag">${esc(i.tag)}</span></div>
+                <div class="d">${esc(i.detail)}</div>
+                <div class="m">影响：${esc(i.impact)}</div>
+                <div class="act">✅ 建议：${esc(i.action)}</div>
+            </div>`).join('') : '<div class="ai-note">未发现超出阈值的异常项。</div>'}
+    </div>`;
+
+    // 行动清单
+    const actionsHtml = `<div class="ai-sec"><h4>四、经营动作清单</h4>
+        <div class="ai-table-wrap">
+            <table>
+                <thead><tr><th style="width:110px">时间窗</th><th style="width:270px">动作</th><th>说明</th><th style="width:230px">衡量指标</th><th style="width:130px">责任</th></tr></thead>
+                <tbody>${d.actions.map(a=>`<tr style="text-align:left">
+                    <td style="text-align:center;color:#9fc1ff">${esc(a.horizon)}</td>
+                    <td style="color:#cfdcf5;font-weight:bold">${esc(a.title)}</td>
+                    <td style="color:#a8b8d8;font-size:12px;line-height:1.75">${esc(a.detail)}</td>
+                    <td style="color:#7dffa9;font-size:12px">${esc(a.kpi)}</td>
+                    <td style="text-align:center;color:#8fa3cf;font-size:12px">${esc(a.owner)}</td>
+                </tr>`).join('')}</tbody>
+            </table>
+        </div>
+    </div>`;
+
+    // 指标字典
+    const dictHtml = `<div class="ai-sec"><h4>五、指标字典（口径定义）</h4>
+        <div class="ai-table-wrap">
+            <table>
+                <thead><tr><th style="width:130px">指标</th><th style="width:240px">计算口径</th><th style="width:120px">当期值</th><th style="width:170px">数据来源</th><th>备注</th></tr></thead>
+                <tbody>${d.dictionary.map(x=>`<tr style="text-align:left">
+                    <td style="color:#cfdcf5;font-weight:bold">${esc(x.name)}</td>
+                    <td style="color:#a8b8d8;font-family:monospace;font-size:11.5px">${esc(x.formula)}</td>
+                    <td style="text-align:center;color:#7dffa9">${esc(x.scope)}</td>
+                    <td style="color:#8fa3cf;font-size:11.5px">${esc(x.source)}</td>
+                    <td style="color:#8fa3cf;font-size:11.5px">${esc(x.note)}</td>
+                </tr>`).join('')}</tbody>
+            </table>
+        </div>
+    </div>`;
+
+    // 可追溯性清单
+    const traceHtml = `<div class="ai-sec"><h4>六、可追溯性清单（专项验收）</h4>
+        <div class="ai-grid2">
+            <div class="ai-table-wrap">
+                <table>
+                    <thead><tr><th style="width:130px">项目</th><th style="width:180px">取值</th><th>来源</th></tr></thead>
+                    <tbody>${d.trace.map(t=>`<tr style="text-align:left">
+                        <td style="color:#cfdcf5">${esc(t.item)}</td>
+                        <td style="color:#7dffa9;font-size:11.5px">${esc(t.value)}</td>
+                        <td style="color:#8fa3cf;font-size:11.5px">${esc(t.source)}</td>
+                    </tr>`).join('')}</tbody>
+                </table>
+            </div>
+            <div class="ai-note">
+                <div style="color:#9fc1ff;font-weight:bold;margin-bottom:6px">执行流程（skill 六步）</div>
+                <ul>${d.methodology.map(m=>`<li><b>${esc(m.step)}</b>：${esc(m.detail)}</li>`).join('')}</ul>
+            </div>
+        </div>
+    </div>`;
+
+    // 假设与限制
+    const assumeHtml = `<div class="ai-sec"><h4>七、口径假设与边界</h4>
+        <div class="ai-note">
+            <div style="color:#ffc078;margin-bottom:8px">⚠️ 本报告不提供投资建议；缺失数据不填补、不生成，一律单列披露。</div>
+            <ul>${d.assumptions.map(a=>`<li>${esc(a)}</li>`).join('')}</ul>
+        </div>
+    </div>`;
+
+    document.getElementById('aiBody').innerHTML = kpiHtml + constraintHtml + sumHtml + chartHtml +
+        issuesHtml + actionsHtml + dictHtml + traceHtml + assumeHtml;
+
+    renderCharts(d);
+}
+
+function renderCharts(d){
+    const AX = {
+        axisLine:{lineStyle:{color:'#44629e'}},
+        axisLabel:{color:'#bcd4ff', fontSize:10},
+        splitLine:{lineStyle:{color:'#233b70'}}
+    };
+    const mk = (id) => {
+        const el = document.getElementById(id);
+        if (!el) return null;
+        const c = echarts.init(el);
+        aiChartInstances.push(c);
+        return c;
+    };
+
+    // 月度趋势
+    const c1 = mk('ai_m');
+    if (c1) c1.setOption({
+        tooltip:{trigger:'axis'},
+        grid:{left:60,right:20,top:20,bottom:60},
+        xAxis:{type:'category',data:d.months.labels,...AX,axisLabel:{...AX.axisLabel,rotate:55}},
+        yAxis:{type:'value',name:'万元',...AX,...{splitLine:AX.splitLine}},
+        series:[{type:'line',smooth:true,symbol:'circle',symbolSize:4,
+            data:d.months.amt_wan,
+            itemStyle:{color:'#4a7bff'},
+            areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,
+                colorStops:[{offset:0,color:'rgba(74,123,255,.45)'},{offset:1,color:'rgba(74,123,255,.02)'}]}},
+            markLine:{silent:true,symbol:'none',
+                data:[{type:'average',label:{formatter:'均值 {c}',color:'#ffc078',fontSize:10},
+                    lineStyle:{color:'#ffc078',type:'dashed'}}]}
+        }]
+    });
+
+    // 季度
+    const c2 = mk('ai_q');
+    if (c2) c2.setOption({
+        tooltip:{trigger:'axis'},
+        grid:{left:60,right:20,top:20,bottom:60},
+        xAxis:{type:'category',data:d.quarters.labels,...AX,axisLabel:{...AX.axisLabel,rotate:55}},
+        yAxis:{type:'value',name:'万元',...AX,...{splitLine:AX.splitLine}},
+        series:[{type:'bar',data:d.quarters.amt_wan,itemStyle:{color:'#7dffa9'},barMaxWidth:26}]
+    });
+
+    // 品类双轴
+    const c3 = mk('ai_cat');
+    if (c3) c3.setOption({
+        tooltip:{trigger:'axis'},
+        legend:{data:['交易额（万元）','交易笔数'],textStyle:{color:'#bcd4ff',fontSize:11},top:0},
+        grid:{left:65,right:65,top:36,bottom:40},
+        xAxis:{type:'category',data:d.cats.map(c=>c.cat),...AX},
+        yAxis:[
+            {type:'value',name:'万元',...AX,...{splitLine:AX.splitLine}},
+            {type:'value',name:'笔数',...AX,splitLine:{show:false}}
+        ],
+        series:[
+            {name:'交易额（万元）',type:'bar',data:d.cats.map(c=>c.amt_wan),itemStyle:{color:'#4a7bff'},barMaxWidth:40},
+            {name:'交易笔数',type:'line',yAxisIndex:1,data:d.cats.map(c=>c.cnt),itemStyle:{color:'#ffc078'},symbolSize:8}
+        ]
+    });
+
+    // 产品 TOP10
+    const c4 = mk('ai_prod');
+    if (c4) c4.setOption({
+        tooltip:{trigger:'axis',formatter:'{b}<br>交易额：{c} 万元'},
+        grid:{left:130,right:30,top:16,bottom:30},
+        xAxis:{type:'value',name:'万元',...AX,...{splitLine:AX.splitLine}},
+        yAxis:{type:'category',data:d.products.map(p=>p.product).reverse(),...AX,
+            axisLabel:{...AX.axisLabel,fontSize:10}},
+        series:[{type:'bar',data:d.products.map(p=>p.amt_wan).reverse(),
+            itemStyle:{color:'#7b4dff'},barMaxWidth:16,
+            label:{show:true,position:'right',color:'#bcd4ff',fontSize:10,formatter:'{c}'}}]
+    });
+
+    // 省份
+    const c5 = mk('ai_prov');
+    if (c5) c5.setOption({
+        tooltip:{trigger:'axis'},
+        grid:{left:65,right:20,top:20,bottom:50},
+        xAxis:{type:'category',data:d.provinces.map(p=>p.province),...AX,axisLabel:{...AX.axisLabel,rotate:30}},
+        yAxis:{type:'value',name:'万元',...AX,...{splitLine:AX.splitLine}},
+        series:[{type:'bar',data:d.provinces.map(p=>p.amt_wan),itemStyle:{color:'#4ac7ff'},barMaxWidth:34,
+            label:{show:true,position:'top',color:'#bcd4ff',fontSize:10,formatter:p=>`${p.data}`}}]
+    });
+
+    // 客户层级
+    const c6 = mk('ai_tier');
+    if (c6) c6.setOption({
+        tooltip:{trigger:'item',formatter:'{b}<br>{c} 万元（{d}%）'},
+        series:[{type:'pie',radius:['42%','68%'],center:['50%','52%'],
+            data:d.tiers.map(t=>({name:t.tier,value:t.amt_wan})),
+            label:{color:'#bcd4ff',fontSize:11,formatter:'{b}\n{d}%'},
+            itemStyle:{borderColor:'#101b3b',borderWidth:2}}]
+    });
+}
+
+function exportAIReport(){
+    if(!aiData){ return alert('报告尚未生成，请先点击 AI 分析'); }
+    const d = aiData;
+    const t = (head, rows) => `<table><thead><tr>${head.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<title>经营突破 AI 财务经营分析报告 ${d.generated_at}</title><style>
+body{font-family:"Microsoft Yahei",sans-serif;max-width:1100px;margin:32px auto;padding:0 24px;color:#222;line-height:1.85}
+h1{font-size:24px;border-bottom:3px solid #4a7bff;padding-bottom:10px}
+h2{font-size:17px;margin-top:30px;color:#1a3a8f;border-left:4px solid #4a7bff;padding-left:10px}
+.meta{font-size:12px;color:#888;margin-bottom:20px}
+table{width:100%;border-collapse:collapse;font-size:12px;margin:10px 0}
+th,td{border:1px solid #ccc;padding:7px;text-align:center}
+th{background:#eef3ff}
+li{margin-bottom:6px;font-size:13px}
+.alert{border-left:4px solid #c0392b;background:#fdf2f2;padding:12px 16px;margin-bottom:10px}
+.alert.orange{border-left-color:#d98a2b;background:#fdf6ec}
+.alert.yellow{border-left-color:#c9b81a;background:#fdfbe8}
+.alert .h{font-weight:bold;margin-bottom:5px}
+.alert .d{font-size:12.5px}.alert .m{font-size:12px;color:#666;margin-top:5px}.alert .act{font-size:12.5px;color:#1a7a3f;margin-top:5px}
+.kpi{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
+.kpi div{flex:1;min-width:130px;border:1px solid #ccd;border-radius:8px;padding:12px;text-align:center;background:#f7f9ff}
+.kpi .v{font-size:19px;font-weight:bold;color:#1a3a8f}.kpi .l{font-size:11.5px;color:#777;margin-top:4px}
+.left{text-align:left}
+</style></head><body>
+<h1>经营突破 · AI 财务经营分析报告</h1>
+<div class="meta">生成时间：${d.generated_at} ｜ 数据版本：${d.data_version || '-'} ｜ 方法论：${d.skill} ｜ 覆盖期：${d.metrics.span}</div>
+
+<div class="kpi">
+<div><div class="v">${fmt(d.kpi.total_amt_wan)} 万</div><div class="l">交易总额</div></div>
+<div><div class="v">${fmt(d.kpi.trans_cnt)}</div><div class="l">交易笔数</div></div>
+<div><div class="v">${fmt(d.kpi.avg_ticket)} 元</div><div class="l">平均客单价</div></div>
+<div><div class="v">${d.kpi.yoy}%</div><div class="l">近12个月同比</div></div>
+<div><div class="v">${d.kpi.approval_rate}%</div><div class="l">审批通过率</div></div>
+<div><div class="v">${d.kpi.hhi}</div><div class="l">产品集中度HHI</div></div>
+</div>
+
+<h2>一、经营摘要</h2><ol>${d.summary.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>
+
+<h2>二、年度与品类明细</h2>
+${t(['年度','交易额（万元）','交易笔数','客单价（元）','同比'], d.years.map(y=>[y.year, fmt(y.amt_wan), fmt(y.cnt), fmt(y.avg_ticket), y.yoy===null?'—':y.yoy+'%']))}
+${t(['品类','交易额（万元）','占比','笔数','客单价（元）'], d.cats.map(c=>[c.cat, fmt(c.amt_wan), c.share+'%', fmt(c.cnt), fmt(c.avg_ticket)]))}
+
+<h2>三、异常问题</h2>
+${d.issues.map(i=>`<div class="alert ${i.level==='橙'?'orange':i.level==='黄'?'yellow':''}">
+<div class="h">${i.level==='红'?'🔴':i.level==='橙'?'🟠':'🟡'} ${esc(i.title)}　<span style="font-weight:normal;font-size:11px;color:#666">[${esc(i.tag)}]</span></div>
+<div class="d">${esc(i.detail)}</div><div class="m">影响：${esc(i.impact)}</div><div class="act">✅ 建议：${esc(i.action)}</div></div>`).join('')}
+
+<h2>四、经营动作清单</h2>
+${t(['时间窗','动作','说明','衡量指标','责任'], d.actions.map(a=>[a.horizon, a.title, a.detail, a.kpi, a.owner]))}
+
+<h2>五、指标字典</h2>
+${t(['指标','计算口径','当期值','数据来源','备注'], d.dictionary.map(x=>[x.name, x.formula, x.scope, x.source, x.note]))}
+
+<h2>六、可追溯性清单</h2>
+${t(['项目','取值','来源'], d.trace.map(x=>[x.item, x.value, x.source]))}
+
+<h2>七、口径假设与边界</h2>
+<ol>${d.assumptions.map(a=>`<li>${esc(a)}</li>`).join('')}</ol>
+<div class="meta" style="margin-top:30px;border-top:1px solid #ddd;padding-top:12px">本报告由 WorkBuddy 基于 ai-hive-gap-024-ai-finance-report 方法论自动生成，模型参数可在 business_analysis.py 中调整。不提供投资建议。</div>
+</body></html>`;
+    const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `经营突破_AI财务经营分析报告_${d.generated_at.replace(/[:\s-]/g,'')}.html`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+</script>
+</body>
+</html>

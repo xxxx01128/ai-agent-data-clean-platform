@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>精准营销360°</title>
+    <script src="../static/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Microsoft Yahei", sans-serif; }
+        body { background: #0b1328; color: #fff; padding: 20px; }
+        .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        h1 { font-size: 26px; }
+        .nav { display: flex; gap: 10px; }
+        .nav a { color: #9fc1ff; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid #2b4075; }
+        .nav a.on { background: #274b92; color: #fff; }
+        .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+        .kpi { background: linear-gradient(160deg, #162447, #1b2c5a); border: 1px solid #2b4075; border-radius: 10px; padding: 16px; text-align: center; }
+        .kpi .lab { color: #8fa3cf; font-size: 13px; margin-bottom: 6px; }
+        .kpi .val { font-size: 24px; font-weight: bold; color: #ffa94d; }
+        .pie-row { display: grid; grid-template-columns: 1fr 1fr; gap:14px; margin-bottom:14px; }
+        .single-card { width:100%; margin-bottom:14px; }
+        .card { background: #101b3b; border: 1px solid #233b70; border-radius: 10px; padding: 14px; }
+        .card h3 { color: #b8d1ff; font-size: 15px; margin-bottom: 10px; }
+        .chart { width: 100%; height: 380px; }
+        .tip { font-size: 12px; color: #5a6a9e; margin-left: 8px; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 999; }
+        .modal-main { width: 90%; max-height: 82vh; background: #101b3b; border: 1px solid #3458a6; border-radius: 10px; margin: 30px auto; padding: 18px; overflow: auto; }
+        .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .btn { padding: 6px 14px; background: #274b92; border: none; color: #fff; border-radius: 5px; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { border: 1px solid #2b4075; padding: 7px; text-align: center; }
+        th { background: #162447; color: #9fc1ff; }
+
+        /* ===== AI 分析 ===== */
+        .ai-btn {
+            padding: 9px 20px; border-radius: 8px; border: 1px solid #4a7bff;
+            background: linear-gradient(135deg, #2b4fa8, #4a7bff); color: #fff;
+            cursor: pointer; font-size: 14px; font-weight: bold;
+            box-shadow: 0 0 18px rgba(74,123,255,.35); transition: .2s;
+        }
+        .ai-btn:hover { transform: translateY(-1px); box-shadow: 0 0 24px rgba(74,123,255,.55); }
+        .ai-btn:disabled { opacity: .6; cursor: wait; }
+        .modal.ai-modal { overflow: hidden; }
+        .ai-panel {
+            width: 94%; max-width: 1420px; height: 92vh; margin: 3vh auto;
+            background: #0d1730; border: 1px solid #3458a6; border-radius: 14px;
+            display: flex; flex-direction: column; overflow: hidden;
+            box-shadow: 0 24px 70px rgba(0,0,0,.65);
+        }
+        .ai-head {
+            display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+            padding: 16px 22px; border-bottom: 1px solid #22345f;
+            background: linear-gradient(120deg, #12224a, #0d1730); flex-shrink: 0;
+        }
+        .ai-head h2 { font-size: 18px; }
+        .ai-meta { font-size: 12px; color: #6f86bd; margin-top: 6px; }
+        .ai-actions { display: flex; gap: 8px; flex-shrink: 0; }
+        .btn.ghost { background: transparent; border: 1px solid #3458a6; color: #9fc1ff; }
+        .btn.ghost:hover { background: #1b2f5c; }
+        .ai-body { padding: 20px 22px 34px; overflow-y: auto; flex: 1; }
+        .ai-loading { display: flex; flex-direction: column; align-items: center; padding: 90px 0; color: #9fc1ff; font-size: 14px; }
+        .spinner {
+            width: 40px; height: 40px; border: 3px solid #22345f; border-top-color: #4a7bff;
+            border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 18px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .ai-steps { font-size: 12px; color: #5f76ad; margin-top: 10px; }
+        .ai-kpi { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+        .ai-kpi .k {
+            background: linear-gradient(160deg, #162447, #1b2c5a); border: 1px solid #2b4075;
+            border-radius: 10px; padding: 14px 10px; text-align: center;
+        }
+        .ai-kpi .k .v { font-size: 21px; font-weight: bold; color: #42b8ff; }
+        .ai-kpi .k .l { font-size: 12px; color: #8fa3cf; margin-top: 5px; }
+        .ai-sec { margin-bottom: 22px; }
+        .ai-sec h4 {
+            font-size: 15px; color: #b8d1ff; margin-bottom: 10px; padding-left: 10px;
+            border-left: 3px solid #4a7bff;
+        }
+        .ai-sum { background: linear-gradient(160deg, #101b38, #16244a); border: 1px solid #233b70; border-radius: 10px; padding: 16px 20px; }
+        .ai-sum li { color: #d6e2fb; font-size: 13.5px; line-height: 2; margin-left: 18px; }
+        .ai-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .ai-chart { background: #101b38; border: 1px solid #233b70; border-radius: 10px; padding: 14px; }
+        .ai-chart .t { font-size: 13px; color: #9fc1ff; margin-bottom: 6px; }
+        .ai-chart .c { height: 290px; }
+        .ai-table-wrap { background: #101b38; border: 1px solid #233b70; border-radius: 10px; padding: 12px; overflow-x: auto; }
+        table.ai-t { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+        table.ai-t th { background: #162447; color: #9fc1ff; padding: 8px; border: 1px solid #2b4075; white-space: nowrap; }
+        table.ai-t td { padding: 7px 8px; border: 1px solid #22345f; color: #d7e1f7; }
+        table.ai-t td.left { text-align: left; line-height: 1.7; }
+        table.ai-t tr:hover td { background: rgba(74,123,255,.08); }
+        .tag { display: inline-block; padding: 1px 9px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
+        .tag.p1 { background: rgba(255,94,94,.15); color: #ff8a8a; border: 1px solid rgba(255,94,94,.35); }
+        .tag.p2 { background: rgba(255,169,77,.14); color: #ffc078; border: 1px solid rgba(255,169,77,.35); }
+        .tag.good { background: rgba(111,224,138,.13); color: #6fe08a; border: 1px solid rgba(111,224,138,.3); }
+        .ai-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .ai-note { font-size: 12px; color: #7c90c4; line-height: 1.95; background: #0c152c; border: 1px dashed #233b70; border-radius: 8px; padding: 14px 18px; }
+        .ai-note li { margin-left: 16px; }
+        .ai-note b { color: #9fc1ff; }
+        .ai-err { background: rgba(160,67,83,.15); border: 1px solid #a04353; color: #f0b6c0; padding: 16px; border-radius: 10px; font-size: 13px; }
+    </style>
+</head>
+<body>
+<div class="top">
+    <h1>👥 精准营销 360° 报表</h1>
+    <div class="nav">
+        <a href="/">🏠首页</a>
+        <a href="/risk">风控</a>
+        <a href="/marketing" class="on">营销</a>
+        <a href="/business">经营</a>
+        <button class="ai-btn" id="aiBtn" onclick="openAIReport()">🤖 AI 分析</button>
+    </div>
+</div>
+
+<div class="kpi-row">
+    <div class="kpi"><div class="lab">客户总数</div><div class="val">{{total_customer}}</div></div>
+    <div class="kpi"><div class="lab">客户留存率</div><div class="val">{{retain_rate}}</div></div>
+    <div class="kpi"><div class="lab">平均AUM资产</div><div class="val">{{avg_aum}}</div></div>
+    <div class="kpi"><div class="lab">高净值客户(AUM&gt;100万)</div><div class="val">{{high_net_cnt}}</div></div>
+</div>
+
+<div class="pie-row">
+    <div class="card"><h3>客户等级分布<span class="tip">点击扇区下钻</span></h3><div id="c_tier" class="chart"></div></div>
+    <div class="card"><h3>客户留存/流失分布<span class="tip">点击扇区下钻</span></h3><div id="c_retain" class="chart"></div></div>
+</div>
+
+<div class="single-card card">
+    <h3>AUM资产区间分布<span class="tip">点击柱子下钻</span></h3>
+    <div id="c_aum" class="chart"></div>
+</div>
+<div class="single-card card">
+    <h3>客户城市TOP12<span class="tip">点击柱子下钻</span></h3>
+    <div id="c_city" class="chart"></div>
+</div>
+
+<div class="modal" id="modal"><div class="modal-main">
+    <div class="modal-head"><h3>🔍 下钻明细</h3><button class="btn" onclick="closeModal()">关闭</button></div>
+    <table id="tbl"></table>
+</div></div>
+
+<div class="modal ai-modal" id="aiModal"><div class="ai-panel">
+    <div class="ai-head">
+        <div>
+            <h2>🤖 精准营销 360° · AI 深度分析报告</h2>
+            <div class="ai-meta" id="aiMeta">方法论：customer-lifetime-value-banking v1.0.0 · CLV 客户生命周期价值模型</div>
+        </div>
+        <div class="ai-actions">
+            <button class="btn ghost" onclick="loadAIReport(true)">🔄 重新生成</button>
+            <button class="btn ghost" onclick="exportAIReport()">⬇ 导出报告</button>
+            <button class="btn" onclick="closeAIReport()">关闭</button>
+        </div>
+    </div>
+    <div class="ai-body" id="aiBody"></div>
+</div></div>
+
+<script>
+const tierData = {{tier_json|tojson}};
+const retainData = {{retain_json|tojson}};
+const aumData = {{aum_json|tojson}};
+const cityData = {{city_json|tojson}};
+
+const AXIS = {
+    axisLine:{lineStyle:{color:'#44629e'}},
+    axisLabel:{color:'#bcd4ff', fontSize:10}
+};
+const SPLIT = { splitLine:{lineStyle:{color:'#233b70'}} };
+const Y_NAME_STYLE = { nameTextStyle:{padding:[0,12,0,0]} };
+
+async function drill(type, val){
+    const r = await fetch('/api/drill',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:type,value:val})});
+    const list = await r.json();
+    const tbl = document.getElementById('tbl');
+    if(!list || list.length===0){ tbl.innerHTML='<tr><td colspan=20>该分组暂无明细</td></tr>'; }
+    else {
+        const keys = Object.keys(list[0]);
+        let h='<thead><tr>'+keys.map(k=>`<th>${k}</th>`).join('')+'</tr></thead><tbody>';
+        list.forEach(o=>{ h+='<tr>'+keys.map(k=>`<td>${o[k]??''}</td>`).join('')+'</tr>'; });
+        h+='</tbody>'; tbl.innerHTML=h;
+    }
+    document.getElementById('modal').style.display='block';
+}
+function closeModal(){ document.getElementById('modal').style.display='none'; }
+
+const ch1 = echarts.init(document.getElementById('c_tier'));
+ch1.setOption({tooltip:{trigger:'item',formatter:'客户等级：{b}<br>客户数量：{c}'},series:[{type:'pie',radius:'62%',data:tierData,label:{formatter:'{b}: {c}'}}]});
+ch1.on('click',p=>drill('tier',p.name));
+
+const ch2 = echarts.init(document.getElementById('c_retain'));
+ch2.setOption({tooltip:{trigger:'item',formatter:'{b}<br>客户数量：{c}'},series:[{type:'pie',radius:'62%',data:retainData,label:{formatter:'{b}: {c}'}}]});
+ch2.on('click',p=>drill('retain',p.name));
+
+const ch3 = echarts.init(document.getElementById('c_aum'));
+ch3.setOption({
+    tooltip:{trigger:'axis',formatter:'资产区间：{b}<br>客户数量：{c}'},
+    grid:{left:180,right:30,top:50,bottom:80},
+    xAxis:{type:'category',data:aumData.map(i=>i.name),...AXIS,axisLabel:{...AXIS.axisLabel,rotate:45}},
+    yAxis:{type:'value',name:'客户数',nameGap:35,...SPLIT,...AXIS,...Y_NAME_STYLE},
+    series:[{type:'bar',data:aumData.map(i=>i.value),itemStyle:{color:'#ffa94d'}}]
+});
+ch3.on('click',p=>drill('aum',p.name));
+
+const ch4 = echarts.init(document.getElementById('c_city'));
+ch4.setOption({
+    tooltip:{trigger:'axis',formatter:'城市：{b}<br>客户数量：{c}'},
+    grid:{left:180,right:30,top:50,bottom:80},
+    xAxis:{type:'category',data:cityData.map(i=>i.name),...AXIS,axisLabel:{...AXIS.axisLabel,rotate:45}},
+    yAxis:{type:'value',name:'客户数',nameGap:35,...SPLIT,...AXIS,...Y_NAME_STYLE},
+    series:[{type:'bar',data:cityData.map(i=>i.value),itemStyle:{color:'#42b8ff'}}]
+});
+ch4.on('click',p=>drill('city',p.name));
+
+window.addEventListener('resize',()=>{ch1.resize();ch2.resize();ch3.resize();ch4.resize();aiChartInstances.forEach(c=>c.resize());});
+
+/* ==================== AI 分析 ==================== */
+let aiData = null;
+let aiChartInstances = [];
+
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fmt = n => Number(n).toLocaleString('zh-CN');
+
+// 支持 /marketing?ai=1 直接打开分析报告
+if (new URLSearchParams(location.search).get('ai') === '1') {
+    window.addEventListener('load', () => openAIReport());
+}
+
+function openAIReport(){
+    document.getElementById('aiModal').style.display = 'block';
+    // 每次点击都校验数据版本：数据已更新则强制按新数据重算
+    loadAIReport(!aiData, aiData ? aiData.data_version : undefined);
+}
+function closeAIReport(){
+    document.getElementById('aiModal').style.display = 'none';
+}
+function disposeAICharts(){
+    aiChartInstances.forEach(c=>{try{c.dispose();}catch(e){}});
+    aiChartInstances = [];
+}
+
+async function loadAIReport(force, expectedVersion){
+    const body = document.getElementById('aiBody');
+    disposeAICharts();
+    body.innerHTML = `<div class="ai-loading"><div class="spinner"></div>
+        <div>正在加载全量客户数据并运行 CLV 模型…</div>
+        <div class="ai-steps">分群 → 收入/成本建模 → 流失生存曲线 → NPV 折现 → 价值杠杆建议</div></div>`;
+    try {
+        // 数据版本与已加载报告不一致 → 强制按新数据重算
+        let url = '/api/ai_report';
+        if (force || (expectedVersion && expectedVersion !== await currentDataVersion())) {
+            url += '?force=1';
+        }
+        const res = await fetch(url);
+        const d = await res.json();
+        if (d.error) throw new Error(d.error);
+        // 双保险：报告版本若与当前数据版本不符，再强制重算一次
+        if (d.data_version && d.data_version !== await currentDataVersion()) {
+            const r2 = await fetch('/api/ai_report?force=1');
+            const d2 = await r2.json();
+            if (!d2.error) { Object.assign(d, d2); }
+        }
+        aiData = d;
+        renderAI(d);
+        const ver = d.data_version ? ` · 数据版本：${d.data_version}` : '';
+        document.getElementById('aiMeta').textContent =
+            `方法论：${d.skill} · 生成时间：${d.generated_at}${ver} · 数据：${fmt(d.data.customers)} 客户 / ` +
+            `${fmt(d.data.applications)} 笔申请 / ${fmt(d.data.transactions)} 笔交易`;
+    } catch (e) {
+        body.innerHTML = `<div class="ai-err">分析失败：${esc(e.message)}</div>`;
+    }
+}
+
+async function currentDataVersion(){
+    try {
+        const r = await fetch('/api/tables');
+        const j = await r.json();
+        return j.version;
+    } catch (e) { return null; }
+}
+
+function renderAI(d){
+    const k = d.kpi;
+    const kpiHtml = `
+        <div class="ai-kpi">
+            <div class="k"><div class="v">${fmt(k.total_clv_wan)} 万</div><div class="l">客户总价值 CLV</div></div>
+            <div class="k"><div class="v">${k.avg_clv_wan} 万</div><div class="l">人均 CLV</div></div>
+            <div class="k"><div class="v">${k.avg_lifetime} 年</div><div class="l">平均预期关系年限</div></div>
+            <div class="k"><div class="v">${k.overall_ratio}x</div><div class="l">整体 CLV / CAC</div></div>
+            <div class="k"><div class="v">${fmt(k.at_risk_wan)} 万</div><div class="l">流失价值敞口</div></div>
+        </div>`;
+
+    const sumHtml = `<div class="ai-sec"><h4>一、执行摘要</h4>
+        <div class="ai-sum"><ol>${d.summary.map(s=>`<li>${esc(s)}</li>`).join('')}</ol></div></div>`;
+
+    const chartHtml = `<div class="ai-sec"><h4>二、价值与生命周期可视化</h4>
+        <div class="ai-charts">
+            <div class="ai-chart"><div class="t">分群人均 CLV 与 CLV/CAC 效率</div><div class="c" id="ai_clv"></div></div>
+            <div class="ai-chart"><div class="t">客户留存生存曲线 S(t)（20 年模型）</div><div class="c" id="ai_surv"></div></div>
+        </div></div>`;
+
+    const segHtml = `<div class="ai-sec"><h4>三、分群 CLV 明细</h4><div class="ai-table-wrap">
+        <table class="ai-t"><thead><tr>
+            <th>客户分层</th><th>客户数</th><th>占比</th><th>人均AUM(万)</th><th>人均CLV(万)</th>
+            <th>预期年限</th><th>年收入(万)</th><th>年成本(万)</th><th>留存率</th><th>CAC(元)</th><th>CLV/CAC</th><th>总CLV(万)</th>
+        </tr></thead><tbody>${d.segments.map(s=>`<tr>
+            <td><b style="color:#ffa94d">${esc(s.name)}</b></td><td>${fmt(s.count)}</td><td>${s.share}%</td>
+            <td>${s.avg_aum}</td><td>${s.avg_clv}</td><td>${s.lifetime}</td>
+            <td>${s.rev_yr}</td><td>${s.cost_yr}</td><td>${s.retention}%</td>
+            <td>${fmt(s.cac)}</td>
+            <td><span class="tag ${s.ratio>=3?'good':'p2'}">${s.ratio}x</span></td>
+            <td><b>${fmt(s.total_clv_wan)}</b></td></tr>`).join('')}</tbody></table></div></div>`;
+
+    const prodHtml = `<div class="ai-grid2">
+        <div class="ai-table-wrap"><div class="t" style="color:#9fc1ff;font-size:13px;margin-bottom:8px;">产品持有数 → 留存与价值</div>
+            <table class="ai-t"><thead><tr><th>产品数</th><th>客户数</th><th>占比</th><th>留存率</th><th>人均AUM(万)</th><th>人均CLV(万)</th></tr></thead>
+            <tbody>${d.product_effect.map(p=>`<tr><td>${p.products}</td><td>${fmt(p.count)}</td><td>${p.share}%</td>
+                <td>${p.retention}%</td><td>${p.avg_aum}</td><td>${p.avg_clv}</td></tr>`).join('')}</tbody></table></div>
+        <div class="ai-table-wrap"><div class="t" style="color:#9fc1ff;font-size:13px;margin-bottom:8px;">客户年限阶段（生命周期）</div>
+            <table class="ai-t"><thead><tr><th>阶段</th><th>客户数</th><th>占比</th><th>留存率</th><th>人均AUM(万)</th><th>人均CLV(万)</th></tr></thead>
+            <tbody>${d.tenure.map(t=>`<tr><td>${esc(t.band)}</td><td>${fmt(t.count)}</td><td>${t.share}%</td>
+                <td>${t.retention}%</td><td>${t.avg_aum}</td><td>${t.avg_clv}</td></tr>`).join('')}</tbody></table></div>
+    </div></div>`;
+
+    const cityHtml = `<div class="ai-grid2">
+        <div class="ai-table-wrap"><div class="t" style="color:#9fc1ff;font-size:13px;margin-bottom:8px;">城市价值 TOP8</div>
+            <table class="ai-t"><thead><tr><th>城市</th><th>客户数</th><th>客户总CLV(万)</th><th>人均CLV(万)</th><th>留存率</th></tr></thead>
+            <tbody>${d.cities.map(c=>`<tr><td>${esc(c.city)}</td><td>${fmt(c.count)}</td>
+                <td>${fmt(c.total_clv_wan)}</td><td>${c.avg_clv}</td><td>${c.retention}%</td></tr>`).join('')}</tbody></table></div>
+        <div class="ai-note">
+            <b>风险与流失敞口</b><br>
+            · 流失客户：<b>${fmt(d.risk.churn_cnt)}</b> 户（流失率 ${d.risk.churn_rate}%），价值敞口 <b>${fmt(d.risk.churn_clv_wan)}</b> 万元<br>
+            · 其中高净值流失：<b>${fmt(d.risk.hv_churn_cnt)}</b> 户，敞口 <b>${fmt(d.risk.hv_churn_clv_wan)}</b> 万元<br>
+            · 高风险/黑名单客户：<b>${fmt(d.risk.high_risk_cnt)}</b> 户（占 ${d.risk.high_risk_share}%），涉及 CLV <b>${fmt(d.risk.high_risk_clv_wan)}</b> 万元<br>
+            · 历史申请坏账：<b>${fmt(d.risk.bad_debt_cnt)}</b> 笔，坏账率 <b>${d.risk.bad_debt_rate}%</b>
+        </div>
+    </div></div>`;
+
+    const leverHtml = `<div class="ai-sec"><h4>四、价值杠杆与投入产出（CLV Value Lever Framework）</h4><div class="ai-table-wrap">
+        <table class="ai-t"><thead><tr><th>杠杆</th><th>优先级</th><th>目标客群</th><th style="min-width:340px">具体策略</th>
+            <th>年化价值(万)</th><th>投入(万)</th><th>ROI</th></tr></thead>
+        <tbody>${d.levers.map(l=>`<tr>
+            <td class="left"><b style="color:#42b8ff">${esc(l.lever)}</b></td>
+            <td><span class="tag ${l.priority==='P1'?'p1':'p2'}">${l.priority}</span></td>
+            <td>${esc(l.target)}</td><td class="left">${esc(l.action)}</td>
+            <td><b style="color:#6fe08a">${fmt(l.impact_wan)}</b></td><td>${fmt(l.invest_wan)}</td>
+            <td><span class="tag good">${l.roi}x</span></td></tr>`).join('')}</tbody></table></div></div>`;
+
+    const actionHtml = `<div class="ai-sec"><h4>五、落地行动清单（90 天节奏）</h4><div class="ai-table-wrap">
+        <table class="ai-t"><thead><tr><th>时间窗</th><th>责任部门</th><th style="min-width:400px">关键动作</th><th style="min-width:260px">成功指标</th></tr></thead>
+        <tbody>${d.actions.map(a=>`<tr><td><b style="color:#ffa94d">${esc(a.when)}</b></td><td>${esc(a.owner)}</td>
+            <td class="left">${esc(a.task)}</td><td class="left">${esc(a.kpi)}</td></tr>`).join('')}</tbody></table></div></div>`;
+
+    const methodHtml = `<div class="ai-sec"><h4>六、方法论与模型假设</h4>
+        <div class="ai-grid2">
+            <div class="ai-note"><b>分析框架（7 步）</b><ol>${d.methodology.map(m=>`<li>${esc(m)}</li>`).join('')}</ol></div>
+            <div class="ai-note"><b>关键假设（模型可参数化）</b><ul>${d.assumptions.map(a=>`<li>${esc(a)}</li>`).join('')}</ul></div>
+        </div></div>`;
+
+    document.getElementById('aiBody').innerHTML =
+        kpiHtml + sumHtml + chartHtml + segHtml +
+        `<div class="ai-sec"><h4>三（续）、留存驱动因子</h4>${prodHtml}<div style="height:14px"></div>${cityHtml}</div>` +
+        leverHtml + actionHtml + methodHtml;
+
+    renderAICharts(d);
+}
+
+function renderAICharts(d){
+    const c1 = echarts.init(document.getElementById('ai_clv'));
+    c1.setOption({
+        tooltip:{trigger:'axis', axisPointer:{type:'shadow'}},
+        legend:{data:['人均CLV(万元)','CLV/CAC(倍)'], textStyle:{color:'#9fb2d9'}, top:0},
+        grid:{left:60, right:55, top:45, bottom:35},
+        xAxis:{type:'category', data:d.charts.clv_bar.map(i=>i.name), ...AXIS},
+        yAxis:[
+            {type:'value', name:'万元', nameTextStyle:{color:'#8fa3cf'}, ...SPLIT, ...AXIS},
+            {type:'value', name:'倍', nameTextStyle:{color:'#8fa3cf'}, ...SPLIT, ...AXIS, splitLine:{show:false}}
+        ],
+        series:[
+            {name:'人均CLV(万元)', type:'bar', barWidth:38, data:d.charts.clv_bar.map(i=>i.value),
+             itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#4a7bff'},{offset:1,color:'#274b92'}]), borderRadius:[4,4,0,0]},
+             label:{show:true, position:'top', color:'#bcd4ff', fontSize:11}},
+            {name:'CLV/CAC(倍)', type:'line', yAxisIndex:1, data:d.charts.ratio_bar.map(i=>i.value),
+             symbolSize:8, lineStyle:{width:3, color:'#ffa94d'}, itemStyle:{color:'#ffa94d'},
+             label:{show:true, color:'#ffc078', fontSize:11}}
+        ]
+    });
+
+    const c2 = echarts.init(document.getElementById('ai_surv'));
+    const colors = ['#42b8ff','#6fe08a','#ffa94d','#ff6b9d'];
+    c2.setOption({
+        tooltip:{trigger:'axis', valueFormatter:v=>v+'%'},
+        legend:{textStyle:{color:'#9fb2d9'}, top:0},
+        grid:{left:55, right:25, top:45, bottom:35},
+        xAxis:{type:'category', data:d.charts.year_axis, ...AXIS},
+        yAxis:{type:'value', name:'留存概率(%)', max:100, nameTextStyle:{color:'#8fa3cf'}, ...SPLIT, ...AXIS},
+        series:d.charts.survival.map((s,i)=>({
+            name:s.name, type:'line', smooth:true, showSymbol:false,
+            data:s.data, lineStyle:{width:2.5, color:colors[i%4]}, itemStyle:{color:colors[i%4]},
+            areaStyle:{opacity:.06, color:colors[i%4]}
+        }))
+    });
+
+    aiChartInstances.push(c1, c2);
+}
+
+/* 导出为独立 HTML 报告文件 */
+function exportAIReport(){
+    if(!aiData){ return alert('报告尚未生成，请先点击 AI 分析'); }
+    const d = aiData;
+    const t = (head, rows) => `<table><thead><tr>${head.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<title>精准营销 CLV 分析报告 ${d.generated_at}</title><style>
+body{font-family:"Microsoft Yahei",sans-serif;max-width:1000px;margin:40px auto;color:#222;line-height:1.7;padding:0 20px}
+h1{font-size:24px;border-bottom:3px solid #2b4fa8;padding-bottom:10px}
+h2{font-size:17px;margin-top:28px;color:#2b4fa8;border-left:4px solid #2b4fa8;padding-left:10px}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0}
+th,td{border:1px solid #ccc;padding:7px 9px;text-align:center}
+th{background:#eef3fb}
+ol,ul{padding-left:22px}
+.meta{color:#666;font-size:13px}
+.kpi{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0}
+.kpi div{flex:1;min-width:150px;border:1px solid #ddd;border-radius:8px;padding:12px;text-align:center}
+.kpi b{display:block;font-size:20px;color:#2b4fa8}
+</style></head><body>
+<h1>精准营销 360° · CLV 分析报告</h1>
+<div class="meta">生成时间：${d.generated_at} ｜ 数据版本：${d.data_version || '-'} ｜ 方法论：${d.skill} ｜ 数据规模：${fmt(d.data.customers)} 客户、${fmt(d.data.applications)} 笔申请、${fmt(d.data.transactions)} 笔交易</div>
+<div class="kpi">
+<div><b>${fmt(d.kpi.total_clv_wan)} 万</b>客户总价值 CLV</div>
+<div><b>${d.kpi.avg_clv_wan} 万</b>人均 CLV</div>
+<div><b>${d.kpi.avg_lifetime} 年</b>平均预期关系年限</div>
+<div><b>${d.kpi.overall_ratio}x</b>整体 CLV/CAC</div>
+<div><b>${fmt(d.kpi.at_risk_wan)} 万</b>流失价值敞口</div>
+</div>
+<h2>一、执行摘要</h2><ol>${d.summary.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>
+<h2>二、分群 CLV 明细</h2>
+${t(['客户分层','客户数','占比','人均AUM(万)','人均CLV(万)','预期年限','年收入(万)','年成本(万)','留存率','CAC(元)','CLV/CAC','总CLV(万)'],
+    d.segments.map(s=>[s.name,fmt(s.count),s.share+'%',s.avg_aum,s.avg_clv,s.lifetime,s.rev_yr,s.cost_yr,s.retention+'%',fmt(s.cac),s.ratio+'x',fmt(s.total_clv_wan)]))}
+<h2>三、留存驱动因子</h2>
+${t(['产品数','客户数','占比','留存率','人均AUM(万)','人均CLV(万)'],
+    d.product_effect.map(p=>[p.products,fmt(p.count),p.share+'%',p.retention+'%',p.avg_aum,p.avg_clv]))}
+${t(['客户年限阶段','客户数','占比','留存率','人均AUM(万)','人均CLV(万)'],
+    d.tenure.map(x=>[x.band,fmt(x.count),x.share+'%',x.retention+'%',x.avg_aum,x.avg_clv]))}
+<h2>四、城市价值 TOP8</h2>
+${t(['城市','客户数','客户总CLV(万)','人均CLV(万)','留存率'],
+    d.cities.map(c=>[c.city,fmt(c.count),fmt(c.total_clv_wan),c.avg_clv,c.retention+'%']))}
+<h2>五、风险与流失敞口</h2>
+<ul>
+<li>流失客户 ${fmt(d.risk.churn_cnt)} 户（流失率 ${d.risk.churn_rate}%），价值敞口 ${fmt(d.risk.churn_clv_wan)} 万元</li>
+<li>高净值流失 ${fmt(d.risk.hv_churn_cnt)} 户，敞口 ${fmt(d.risk.hv_churn_clv_wan)} 万元</li>
+<li>高风险/黑名单 ${fmt(d.risk.high_risk_cnt)} 户（${d.risk.high_risk_share}%），涉及 CLV ${fmt(d.risk.high_risk_clv_wan)} 万元</li>
+<li>历史申请坏账 ${fmt(d.risk.bad_debt_cnt)} 笔，坏账率 ${d.risk.bad_debt_rate}%</li>
+</ul>
+<h2>六、价值杠杆与投入产出</h2>
+${t(['杠杆','优先级','目标客群','具体策略','年化价值(万)','投入(万)','ROI'],
+    d.levers.map(l=>[l.lever,l.priority,l.target,l.action,fmt(l.impact_wan),fmt(l.invest_wan),l.roi+'x']))}
+<h2>七、落地行动清单</h2>
+${t(['时间窗','责任部门','关键动作','成功指标'],
+    d.actions.map(a=>[a.when,a.owner,a.task,a.kpi]))}
+<h2>八、方法论与模型假设</h2>
+<h3>分析框架</h3><ol>${d.methodology.map(m=>`<li>${esc(m)}</li>`).join('')}</ol>
+<h3>关键假设</h3><ul>${d.assumptions.map(a=>`<li>${esc(a)}</li>`).join('')}</ul>
+<div class="meta" style="margin-top:30px;border-top:1px solid #ddd;padding-top:12px">本报告由 WorkBuddy 基于 customer-lifetime-value-banking 方法论自动生成，模型参数可在 clv_analysis.py 中调整。</div>
+</body></html>`;
+    const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `精准营销CLV分析报告_${d.generated_at.replace(/[: ]/g,'-')}.html`;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
+}
+</script>
+</body>
+</html>

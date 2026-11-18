@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>智能风控报表</title>
+    <script src="../static/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Microsoft Yahei", sans-serif; }
+        body { background: #0b1328; color: #fff; padding: 20px; }
+        .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        h1 { font-size: 26px; }
+        .nav { display: flex; gap: 10px; }
+        .nav a { color: #9fc1ff; text-decoration: none; padding: 6px 14px; border-radius: 6px; border: 1px solid #2b4075; }
+        .nav a.on { background: #274b92; color: #fff; }
+        .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 18px; }
+        .kpi { background: linear-gradient(160deg, #162447, #1b2c5a); border: 1px solid #2b4075; border-radius: 10px; padding: 16px; text-align: center; }
+        .kpi .lab { color: #8fa3cf; font-size: 13px; margin-bottom: 6px; }
+        .kpi .val { font-size: 24px; font-weight: bold; color: #7dffa9; }
+        .pie-row { display: grid; grid-template-columns: 1fr 1fr; gap:14px; margin-bottom:14px; }
+        .single-card { width:100%; margin-bottom:14px; }
+        .card { background: #101b3b; border: 1px solid #233b70; border-radius: 10px; padding: 14px; }
+        .card h3 { color: #b8d1ff; font-size: 15px; margin-bottom: 10px; }
+        .chart { width: 100%; height: 380px; }
+        .tip { font-size: 12px; color: #5a6a9e; margin-left: 8px; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 999; }
+        .modal-main { width: 90%; max-height: 82vh; background: #101b3b; border: 1px solid #3458a6; border-radius: 10px; margin: 30px auto; padding: 18px; overflow: auto; }
+        .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .btn { padding: 6px 14px; background: #274b92; border: none; color: #fff; border-radius: 5px; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { border: 1px solid #2b4075; padding: 7px; text-align: center; }
+        th { background: #162447; color: #9fc1ff; }
+
+        /* ===== AI 风险分析 ===== */
+        .ai-btn {
+            padding: 9px 20px; border-radius: 8px; border: 1px solid #ff6b6b;
+            background: linear-gradient(135deg, #8a2b3a, #ff6b6b); color: #fff;
+            cursor: pointer; font-size: 14px; font-weight: bold;
+            box-shadow: 0 0 18px rgba(255,107,107,.3); transition: .2s;
+        }
+        .ai-btn:hover { transform: translateY(-1px); box-shadow: 0 0 24px rgba(255,107,107,.5); }
+        .modal.ai-modal { overflow: hidden; }
+        .ai-panel {
+            width: 94%; max-width: 1420px; height: 92vh; margin: 3vh auto;
+            background: #0d1730; border: 1px solid #3458a6; border-radius: 14px;
+            display: flex; flex-direction: column; overflow: hidden;
+            box-shadow: 0 24px 70px rgba(0,0,0,.65);
+        }
+        .ai-head {
+            display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+            padding: 16px 22px; border-bottom: 1px solid #22345f;
+            background: linear-gradient(120deg, #2a1622, #0d1730); flex-shrink: 0;
+        }
+        .ai-head h2 { font-size: 18px; }
+        .ai-meta { font-size: 12px; color: #b08a97; margin-top: 6px; line-height: 1.7; }
+        .ai-actions { display: flex; gap: 8px; flex-shrink: 0; }
+        .btn.ghost { background: transparent; border: 1px solid #3458a6; color: #9fc1ff; }
+        .btn.ghost:hover { background: #1b2f5c; }
+        .ai-body { padding: 20px 22px 34px; overflow-y: auto; flex: 1; }
+        .ai-loading { display: flex; flex-direction: column; align-items: center; padding: 90px 0; color: #ffb3b3; font-size: 14px; }
+        .spinner {
+            width: 40px; height: 40px; border: 3px solid #3a2230; border-top-color: #ff6b6b;
+            border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 18px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .ai-steps { font-size: 12px; color: #8f6b76; margin-top: 10px; }
+        .ai-kpi { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 20px; }
+        .ai-kpi .k {
+            background: linear-gradient(160deg, #1d2136, #2a1c30); border: 1px solid #4a3348;
+            border-radius: 10px; padding: 13px 8px; text-align: center;
+        }
+        .ai-kpi .k .v { font-size: 19px; font-weight: bold; color: #ff8f8f; }
+        .ai-kpi .k .l { font-size: 11.5px; color: #a8909c; margin-top: 5px; }
+        .ai-sec { margin-bottom: 22px; }
+        .ai-sec h4 {
+            font-size: 15px; color: #ffd0d0; margin-bottom: 10px; padding-left: 10px;
+            border-left: 3px solid #ff6b6b;
+        }
+        .ai-sum { background: linear-gradient(160deg, #141a30, #1e2038); border: 1px solid #3a3350; border-radius: 10px; padding: 16px 20px; }
+        .ai-sum li { color: #dfe3f5; font-size: 13.5px; line-height: 2; margin-left: 18px; }
+        .ai-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .ai-chart { background: #101b38; border: 1px solid #233b70; border-radius: 10px; padding: 14px; }
+        .ai-chart .t { font-size: 13px; color: #9fc1ff; margin-bottom: 6px; }
+        .ai-chart .c { height: 290px; }
+        .ai-table-wrap { background: #101b38; border: 1px solid #233b70; border-radius: 10px; padding: 12px; overflow-x: auto; }
+        table.ai-t { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+        table.ai-t th { background: #162447; color: #9fc1ff; padding: 8px; border: 1px solid #2b4075; white-space: nowrap; }
+        table.ai-t td { padding: 7px 8px; border: 1px solid #22345f; color: #d7e1f7; }
+        table.ai-t td.left { text-align: left; line-height: 1.7; }
+        table.ai-t tr:hover td { background: rgba(255,107,107,.07); }
+        .tag { display: inline-block; padding: 1px 9px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
+        .tag.red { background: rgba(255,77,79,.16); color: #ff7875; border: 1px solid rgba(255,77,79,.4); }
+        .tag.orange { background: rgba(255,169,77,.14); color: #ffc078; border: 1px solid rgba(255,169,77,.35); }
+        .tag.yellow { background: rgba(255,236,120,.12); color: #ffe58f; border: 1px solid rgba(255,236,120,.3); }
+        .tag.good { background: rgba(111,224,138,.13); color: #6fe08a; border: 1px solid rgba(111,224,138,.3); }
+        .ai-alert {
+            border-radius: 10px; padding: 13px 16px; margin-bottom: 10px;
+            border-left: 4px solid #ff4d4f; background: rgba(255,77,79,.07);
+        }
+        .ai-alert.orange { border-left-color: #ffa94d; background: rgba(255,169,77,.06); }
+        .ai-alert.yellow { border-left-color: #ffe58f; background: rgba(255,236,120,.05); }
+        .ai-alert .h { font-size: 14px; font-weight: bold; color: #ffb3b3; margin-bottom: 6px; display: flex; gap: 10px; align-items: center; }
+        .ai-alert.orange .h { color: #ffc078; }
+        .ai-alert.yellow .h { color: #ffe58f; }
+        .ai-alert .d { font-size: 12.5px; color: #c9d3ec; line-height: 1.85; }
+        .ai-alert .m { font-size: 11.5px; color: #8fa3cf; margin-top: 6px; }
+        .ai-alert .act { font-size: 12px; color: #6fe08a; margin-top: 6px; }
+        .ai-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .ai-note { font-size: 12px; color: #7c90c4; line-height: 1.95; background: #0c152c; border: 1px dashed #233b70; border-radius: 8px; padding: 14px 18px; }
+        .ai-note li { margin-left: 16px; }
+        .ai-note b { color: #9fc1ff; }
+        .ai-constraint {
+            background: rgba(74,123,255,.08); border: 1px dashed #3458a6; border-radius: 8px;
+            padding: 11px 16px; font-size: 12.5px; color: #9fc1ff; margin-bottom: 16px;
+        }
+        .ai-err { background: rgba(160,67,83,.15); border: 1px solid #a04353; color: #f0b6c0; padding: 16px; border-radius: 10px; font-size: 13px; }
+    </style>
+</head>
+<body>
+<div class="top">
+    <h1>🔒 智能风控报表</h1>
+    <div class="nav">
+        <a href="/">🏠首页</a>
+        <a href="/risk" class="on">风控</a>
+        <a href="/marketing">营销</a>
+        <a href="/business">经营</a>
+        <button class="ai-btn" onclick="openAIReport()">🤖 AI 分析</button>
+    </div>
+</div>
+
+<div class="kpi-row">
+    <div class="kpi"><div class="lab">客户总数</div><div class="val">{{total_customer}}</div></div>
+    <div class="kpi"><div class="lab">申请笔数</div><div class="val">{{total_apply}}</div></div>
+    <div class="kpi"><div class="lab">坏账笔数</div><div class="val">{{bad_cnt}}</div></div>
+    <div class="kpi"><div class="lab">坏账率</div><div class="val">{{bad_rate}}</div></div>
+    <div class="kpi"><div class="lab">平均处理时长(h)</div><div class="val">{{avg_hour}}</div></div>
+</div>
+
+<div class="pie-row">
+    <div class="card"><h3>客户风险等级分布<span class="tip">点击扇区下钻</span></h3><div id="c_risk" class="chart"></div></div>
+    <div class="card"><h3>贷款申请状态分布<span class="tip">点击扇区下钻</span></h3><div id="c_status" class="chart"></div></div>
+</div>
+
+<div class="single-card card">
+    <h3>坏账金额按产品分布<span class="tip">点击柱子下钻</span></h3>
+    <div id="c_prod" class="chart"></div>
+</div>
+<div class="single-card card">
+    <h3>各省份客户分布<span class="tip">点击柱子下钻</span></h3>
+    <div id="c_province" class="chart"></div>
+</div>
+<div class="single-card card">
+    <h3>坏账金额按月趋势<span class="tip">鼠标滚轮横向滑动，点击节点下钻当月明细</span></h3>
+    <div id="c_month" class="chart"></div>
+</div>
+
+<div class="modal" id="modal"><div class="modal-main">
+    <div class="modal-head"><h3>🔍 下钻明细</h3><button class="btn" onclick="closeModal()">关闭</button></div>
+    <table id="tbl"></table>
+</div></div>
+
+<div class="modal ai-modal" id="aiModal"><div class="ai-panel">
+    <div class="ai-head">
+        <div>
+            <h2>🤖 智能风控 · AI 风险分析报告</h2>
+            <div class="ai-meta" id="aiMeta">方法论：credit-risk-explanation v1.0.0 · PD / LGD / EAD 预期信用损失框架</div>
+        </div>
+        <div class="ai-actions">
+            <button class="btn ghost" onclick="loadAIReport(true)">🔄 重新生成</button>
+            <button class="btn ghost" onclick="exportAIReport()">⬇ 导出报告</button>
+            <button class="btn" onclick="closeAIReport()">关闭</button>
+        </div>
+    </div>
+    <div class="ai-body" id="aiBody"></div>
+</div></div>
+
+<script>
+const riskData = {{risk_json|tojson}};
+const statusData = {{status_json|tojson}};
+const prodData = {{bad_prod_json|tojson}};
+const provinceData = {{province_json|tojson}};
+const monthData = {{bad_month_json|tojson}};
+
+const AXIS = {
+    axisLine:{lineStyle:{color:'#44629e'}},
+    axisLabel:{color:'#bcd4ff', fontSize:10}
+};
+const SPLIT = { splitLine:{lineStyle:{color:'#233b70'}} };
+const Y_NAME_STYLE = { nameTextStyle:{padding:[0,12,0,0]} };
+
+async function drill(type, val){
+    const r = await fetch('/api/drill',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:type,value:val})});
+    const list = await r.json();
+    const tbl = document.getElementById('tbl');
+    if(!list || list.length===0){ tbl.innerHTML='<tr><td colspan=20>该分组暂无明细</td></tr>'; }
+    else {
+        const keys = Object.keys(list[0]);
+        let h='<thead><tr>'+keys.map(k=>`<th>${k}</th>`).join('')+'</tr></thead><tbody>';
+        list.forEach(o=>{ h+='<tr>'+keys.map(k=>`<td>${o[k]??''}</td>`).join('')+'</tr>'; });
+        h+='</tbody>'; tbl.innerHTML=h;
+    }
+    document.getElementById('modal').style.display='block';
+}
+function closeModal(){ document.getElementById('modal').style.display='none'; }
+
+const ch1 = echarts.init(document.getElementById('c_risk'));
+ch1.setOption({tooltip:{trigger:'item',formatter:'风险等级：{b}<br>客户数量：{c}'},series:[{type:'pie',radius:'62%',data:riskData,label:{formatter:'{b}: {c}'}}]});
+ch1.on('click',p=>drill('risk',p.name));
+
+const ch2 = echarts.init(document.getElementById('c_status'));
+ch2.setOption({tooltip:{trigger:'item',formatter:'申请状态：{b}<br>申请笔数：{c}'},series:[{type:'pie',radius:'62%',data:statusData,label:{formatter:'{b}: {c}'}}]});
+ch2.on('click',p=>drill('status',p.name));
+
+const ch3 = echarts.init(document.getElementById('c_prod'));
+ch3.setOption({
+    tooltip:{trigger:'axis'},
+    grid:{left:180,right:30,top:50,bottom:80},
+    xAxis:{type:'category',data:prodData.map(i=>i.name),...AXIS,axisLabel:{...AXIS.axisLabel,rotate:45}},
+    yAxis:{type:'value',name:'坏账金额',nameGap:35,...SPLIT,...AXIS,...Y_NAME_STYLE},
+    series:[{type:'bar',data:prodData.map(i=>i.value),itemStyle:{color:'#ff6b6b'}}]
+});
+ch3.on('click',p=>drill('product',p.name));
+
+const ch4 = echarts.init(document.getElementById('c_province'));
+ch4.setOption({
+    tooltip:{trigger:'axis'},
+    grid:{left:180,right:30,top:50,bottom:80},
+    xAxis:{type:'category',data:provinceData.map(i=>i.name),...AXIS,axisLabel:{...AXIS.axisLabel,rotate:45}},
+    yAxis:{type:'value',name:'客户数',nameGap:35,...SPLIT,...AXIS,...Y_NAME_STYLE},
+    series:[{type:'bar',data:provinceData.map(i=>i.value),itemStyle:{color:'#42b8ff'}}]
+});
+ch4.on('click',p=>drill('province',p.name));
+
+const ch5 = echarts.init(document.getElementById('c_month'));
+ch5.setOption({
+    tooltip:{trigger:'axis',formatter:'月份：{b}<br>坏账金额：{c}'},
+    grid:{left:180,right:30,top:50,bottom:80},
+    dataZoom:[{
+        type:'slider',show:true,height:22,start:0,end:100,
+        zoomOnMouseWheel:true,moveOnMouseWheel:true
+    }],
+    xAxis:{type:'category',data:monthData.map(i=>i.name),...AXIS,axisLabel:{...AXIS.axisLabel,rotate:45}},
+    yAxis:{type:'value',name:'坏账金额',nameGap:35,...SPLIT,...AXIS,...Y_NAME_STYLE},
+    series:[{type:'line',data:monthData.map(i=>i.value),smooth:true,itemStyle:{color:'#ff6b6b'},areaStyle:{color:'rgba(255,107,107,.15)'}}]
+});
+ch5.on('click',p=>drill('month',p.name));
+
+window.addEventListener('resize',()=>{ch1.resize();ch2.resize();ch3.resize();ch4.resize();ch5.resize();aiChartInstances.forEach(c=>c.resize());});
+
+/* ==================== AI 风险分析 ==================== */
+let aiData = null;
+let aiChartInstances = [];
+
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fmt = n => Number(n).toLocaleString('zh-CN');
+
+if (new URLSearchParams(location.search).get('ai') === '1') {
+    window.addEventListener('load', () => openAIReport());
+}
+
+function openAIReport(){
+    document.getElementById('aiModal').style.display = 'block';
+    // 每次点击都校验数据版本：数据已更新则强制按新数据重算
+    loadAIReport(!aiData, aiData ? aiData.data_version : undefined);
+}
+function closeAIReport(){ document.getElementById('aiModal').style.display = 'none'; }
+function disposeAICharts(){
+    aiChartInstances.forEach(c=>{try{c.dispose();}catch(e){}});
+    aiChartInstances = [];
+}
+
+async function loadAIReport(force, expectedVersion){
+    const body = document.getElementById('aiBody');
+    disposeAICharts();
+    body.innerHTML = `<div class="ai-loading"><div class="spinner"></div>
+        <div>正在跑 PD / LGD / EAD 预期损失模型…</div>
+        <div class="ai-steps">风险驱动因子拆解 → 内部评级映射 → ECL 测算 → 敏感性分析 → 风险预警</div></div>`;
+    try {
+        // 数据版本与已加载报告不一致 → 强制按新数据重算
+        let url = '/api/risk_report';
+        if (force || (expectedVersion && expectedVersion !== await currentDataVersion())) {
+            url += '?force=1';
+        }
+        const res = await fetch(url);
+        const d = await res.json();
+        if (d.error) throw new Error(d.error);
+        // 双保险：报告版本若与当前数据版本不符，再强制重算一次
+        if (d.data_version && d.data_version !== await currentDataVersion()) {
+            const r2 = await fetch('/api/risk_report?force=1');
+            const d2 = await r2.json();
+            if (!d2.error) { Object.assign(d, d2); }
+        }
+        aiData = d;
+        renderAI(d);
+        const ver = d.data_version ? ` · 数据版本：${d.data_version}` : '';
+        document.getElementById('aiMeta').textContent =
+            `方法论：${d.skill} · 生成时间：${d.generated_at}${ver} · 数据：${fmt(d.data.applications)} 笔申请 / ` +
+            `${fmt(d.data.customers)} 客户 / 观察期 ${d.data.period}`;
+    } catch(e) {
+        body.innerHTML = `<div class="ai-err">分析失败：${esc(e.message)}</div>`;
+    }
+}
+
+async function currentDataVersion(){
+    try {
+        const r = await fetch('/api/tables');
+        const j = await r.json();
+        return j.version;
+    } catch (e) { return null; }
+}
+
+function renderAI(d){
+    const k = d.kpi;
+    const kpiHtml = `
+        <div class="ai-kpi">
+            <div class="k"><div class="v">${k.pd_overall}%</div><div class="l">全量坏账率</div></div>
+            <div class="k"><div class="v">${k.pd_mature}%</div><div class="l">成熟口径 PD</div></div>
+            <div class="k"><div class="v">${k.lgd}%</div><div class="l">加权 LGD</div></div>
+            <div class="k"><div class="v">${fmt(k.ead_wan)} 万</div><div class="l">在贷敞口 EAD</div></div>
+            <div class="k"><div class="v">${fmt(k.ecl_wan)} 万</div><div class="l">预期信用损失 ECL</div></div>
+            <div class="k"><div class="v">${esc(k.rating)}</div><div class="l">组合内部评级</div></div>
+        </div>`;
+
+    const constraintHtml = `<div class="ai-constraint">📌 分析约束：${esc(d.constraint)}</div>`;
+
+    const sumHtml = `<div class="ai-sec"><h4>一、执行摘要</h4>
+        <div class="ai-sum"><ol>${d.summary.map(s=>`<li>${esc(s)}</li>`).join('')}</ol></div></div>`;
+
+    const ratingHtml = `<div class="ai-sec"><h4>二、风险评级结论与关键驱动因子</h4>
+        <div class="ai-grid2" style="margin-bottom:14px">
+            <div class="ai-note">
+                <b>组合内部评级</b><br>
+                · 当前评级：<b style="color:#ff8f8f">${esc(d.rating.grade)} 级（${esc(d.rating.label)}）</b>，对应 PD ${d.rating.pd}%<br>
+                · 评级方向：<b>${esc(d.rating.direction)}</b>${d.rating.prev_pd !== null ? `（上期 ${d.rating.prev_pd}%）` : ''}<br>
+                · 评价口径：账龄成熟的已结清样本实际坏账率<br>
+                · 风险等级标签区分度：AUC <b style="color:#ff8f8f">${d.quality.auc}</b>（0.5 = 随机，0.7+ = 可用）
+            </div>
+            <div class="ai-note">
+                <b>损失测算口径</b><br>
+                · PD ${d.ecl.pd}% × LGD ${d.ecl.lgd}% × EAD ${fmt(d.ecl.ead_wan)} 万元<br>
+                · 预期信用损失 ECL = <b style="color:#ff8f8f">${fmt(d.ecl.ecl_wan)} 万元</b>（占敞口 ${d.ecl.ecl_rate}%）<br>
+                · 历史已结清存量对应损失回算 ${fmt(d.ecl.ecl_settled_wan)} 万元<br>
+                · 未叠加宏观情景权重与折现，属简化口径
+            </div>
+        </div>
+        <div class="ai-table-wrap">
+            <table class="ai-t"><thead><tr><th style="min-width:250px">风险驱动因子</th><th>当前值</th><th>基准 / 对比口径</th><th>趋势</th><th>重要性</th></tr></thead>
+            <tbody>${d.drivers.map(x=>`<tr>
+                <td class="left">${esc(x.driver)}</td><td><b>${esc(x.current)}</b></td>
+                <td>${esc(x.benchmark)}</td><td>${esc(x.trend)}</td>
+                <td><span class="tag ${x.materiality==='高'?'red':(x.materiality==='中'?'orange':'yellow')}">${esc(x.materiality)}</span></td>
+            </tr>`).join('')}</tbody></table>
+        </div></div>`;
+
+    const chartHtml = `<div class="ai-sec"><h4>三、风险可视化</h4>
+        <div class="ai-charts" style="margin-bottom:14px">
+            <div class="ai-chart"><div class="t">客户风险等级 vs 实际坏账率（标签区分度检验）</div><div class="c" id="c_rk_pd"></div></div>
+            <div class="ai-chart"><div class="t">分产品 PD 与预期损失 ECL TOP8</div><div class="c" id="c_prod_ai"></div></div>
+        </div>
+        <div class="ai-charts">
+            <div class="ai-chart"><div class="t">月度坏账率趋势与申请量</div><div class="c" id="c_month_ai"></div></div>
+            <div class="ai-chart"><div class="t">审批漏斗（申请 → 通过 → 放款 → 结清）</div><div class="c" id="c_funnel_ai"></div></div>
+        </div></div>`;
+
+    const eclHtml = `<div class="ai-sec"><h4>四、预期信用损失 ECL 测算与敏感性</h4>
+        <div class="ai-grid2">
+            <div class="ai-table-wrap"><div class="t" style="color:#9fc1ff;font-size:13px;margin-bottom:8px;">分产品 ECL（坏账金额 TOP12）</div>
+                <table class="ai-t"><thead><tr><th>产品</th><th>PD</th><th>LGD</th><th>EAD(万)</th><th>ECL(万)</th><th>坏账金额(万)</th></tr></thead>
+                <tbody>${d.products.map(p=>`<tr><td class="left">${esc(p.name)}</td><td>${p.pd}%</td><td>${p.lgd}%</td>
+                    <td>${fmt(p.ead_wan)}</td><td><b style="color:#ff8f8f">${fmt(p.ecl_wan)}</b></td><td>${fmt(p.bad_amt_wan)}</td></tr>`).join('')}</tbody></table>
+            </div>
+            <div>
+                <div class="ai-table-wrap" style="margin-bottom:14px"><div class="t" style="color:#9fc1ff;font-size:13px;margin-bottom:8px;">敏感性分析（PD / LGD 变动）</div>
+                    <table class="ai-t"><thead><tr><th>情景</th><th>PD</th><th>LGD</th><th>ECL(万)</th><th>较基准变动(万)</th></tr></thead>
+                    <tbody>${d.sensitivity.map(s=>`<tr><td>${esc(s.scenario)}</td><td>${s.pd}%</td><td>${s.lgd}%</td>
+                        <td><b>${fmt(s.ecl_wan)}</b></td><td style="color:${s.delta_wan>0?'#ff8f8f':'#6fe08a'}">${s.delta_wan>0?'+':''}${fmt(s.delta_wan)}</td></tr>`).join('')}</tbody></table>
+                </div>
+                <div class="ai-table-wrap"><div class="t" style="color:#9fc1ff;font-size:13px;margin-bottom:8px;">分资产大类 ECL 结构</div>
+                    <table class="ai-t"><thead><tr><th>大类</th><th>笔数</th><th>PD</th><th>ECL(万)</th><th>占比</th></tr></thead>
+                    <tbody>${d.categories.map(c=>`<tr><td>${esc(c.name)}</td><td>${fmt(c.apps)}</td><td>${c.pd}%</td>
+                        <td>${fmt(c.ecl_wan)}</td><td>${d.ecl.ecl_wan?((c.ecl_wan/d.ecl.ecl_wan*100).toFixed(1)):'0'}%</td></tr>`).join('')}</tbody></table>
+                </div>
+            </div>
+        </div></div>`;
+
+    const riskDistHtml = `<div class="ai-sec"><h4>五、客户风险分布</h4><div class="ai-table-wrap">
+        <table class="ai-t"><thead><tr><th>风险等级</th><th>客户数</th><th>客户占比</th><th>申请笔数</th><th>实际坏账率 PD</th><th>坏账笔数</th><th>坏账金额(万)</th></tr></thead>
+        <tbody>${d.risk_levels.map(r=>`<tr><td><b>${esc(r.level)}</b></td><td>${fmt(r.customers)}</td><td>${r.cust_share}%</td>
+            <td>${fmt(r.apps)}</td><td><b>${r.pd}%</b></td><td>${fmt(r.bad_cnt)}</td><td>${fmt(r.bad_amt_wan)}</td></tr>`).join('')}</tbody></table>
+        <div style="font-size:12px;color:#8fa3cf;margin-top:8px;line-height:1.8">
+            说明：四个等级实际坏账率极差仅 ${d.quality.pd_spread_bp}bp，标签与违约事实几乎无关；
+            若为有效评分卡，黑名单组 PD 应显著高于低风险组（通常 5-10 倍）。
+        </div></div></div>`;
+
+    const approvalHtml = `<div class="ai-sec"><h4>六、贷款审批情况</h4>
+        <div class="ai-grid2">
+            <div class="ai-table-wrap"><div class="t" style="color:#9fc1ff;font-size:13px;margin-bottom:8px;">审批状态结构与效率</div>
+                <table class="ai-t"><thead><tr><th>指标</th><th>数值</th></tr></thead><tbody>
+                    <tr><td>申请总量</td><td><b>${fmt(d.funnel.total)}</b> 笔</td></tr>
+                    <tr><td>审批通过率</td><td><b>${d.funnel.pass_rate}%</b></td></tr>
+                    <tr><td>拒绝率</td><td>${d.funnel.reject_rate}%</td></tr>
+                    <tr><td>在途审核</td><td>${fmt(d.funnel.reviewing)} 笔</td></tr>
+                    <tr><td>放款中</td><td>${fmt(d.funnel.lending)} 笔</td></tr>
+                    <tr><td>已结清</td><td>${fmt(d.funnel.settled)} 笔</td></tr>
+                    <tr><td>平均处理时长</td><td>${d.funnel.avg_hours} h（中位数 ${d.funnel.median_hours} h）</td></tr>
+                    <tr><td>超 48h 占比</td><td><b style="color:#ff8f8f">${d.funnel.sla_rate}%</b>（${fmt(d.funnel.over_sla_cnt)} 笔）</td></tr>
+                    <tr><td>超时件 / 及时件坏账率</td><td>${d.funnel.slow_bad}% / ${d.funnel.fast_bad}%</td></tr>
+                </tbody></table>
+            </div>
+            <div class="ai-table-wrap"><div class="t" style="color:#9fc1ff;font-size:13px;margin-bottom:8px;">申请金额分档 PD（额度策略检验）</div>
+                <table class="ai-t"><thead><tr><th>金额区间</th><th>笔数</th><th>坏账率 PD</th><th>金额合计(万)</th></tr></thead>
+                <tbody>${d.amount_bins.map(a=>`<tr><td>${esc(a.bin)}</td><td>${fmt(a.apps)}</td><td>${a.pd}%</td><td>${fmt(a.amt_wan)}</td></tr>`).join('')}</tbody></table>
+                <div class="t" style="color:#9fc1ff;font-size:13px;margin:14px 0 8px;">年度 PD 迁徙</div>
+                <table class="ai-t"><thead><tr><th>年度</th><th>申请笔数</th><th>全量 PD</th><th>成熟口径 PD</th><th>坏账金额(万)</th></tr></thead>
+                <tbody>${d.years.map(y=>`<tr><td>${y.year}</td><td>${fmt(y.apps)}</td><td>${y.pd_all}%</td>
+                    <td>${y.pd_mature===null?'-':y.pd_mature+'%'}</td><td>${fmt(y.bad_amt_wan)}</td></tr>`).join('')}</tbody></table>
+            </div>
+        </div></div>`;
+
+    const alertHtml = `<div class="ai-sec"><h4>七、风险预警清单（红 / 橙 / 黄）</h4>
+        ${d.alerts.map(a=>`<div class="ai-alert ${a.level==='红色'?'':(a.level==='橙色'?'orange':'yellow')}">
+            <div class="h"><span class="tag ${a.level==='红色'?'red':(a.level==='橙色'?'orange':'yellow')}">${esc(a.level)}</span>${esc(a.title)}</div>
+            <div class="d">${esc(a.detail)}</div>
+            <div class="m">关键指标：${esc(a.metric)}</div>
+            <div class="act">▸ 建议动作：${esc(a.action)}</div>
+        </div>`).join('')}</div>`;
+
+    const actionHtml = `<div class="ai-sec"><h4>八、风控建议（落地节奏）</h4><div class="ai-table-wrap">
+        <table class="ai-t"><thead><tr><th>时间窗</th><th>责任部门</th><th style="min-width:400px">关键动作</th><th style="min-width:240px">考核指标</th></tr></thead>
+        <tbody>${d.actions.map(a=>`<tr><td><b style="color:#ffa94d">${esc(a.when)}</b></td><td>${esc(a.owner)}</td>
+            <td class="left">${esc(a.task)}</td><td class="left">${esc(a.kpi)}</td></tr>`).join('')}</tbody></table></div></div>`;
+
+    const methodHtml = `<div class="ai-sec"><h4>九、方法论、假设与局限性</h4>
+        <div class="ai-grid2">
+            <div class="ai-note"><b>分析框架（7 步）</b><ol>${d.methodology.map(m=>`<li>${esc(m)}</li>`).join('')}</ol></div>
+            <div>
+                <div class="ai-note" style="margin-bottom:14px"><b>关键假设</b><ul>${d.assumptions.map(a=>`<li>${esc(a)}</li>`).join('')}</ul></div>
+                <div class="ai-note"><b>局限性与数据质量</b><ul>
+                    <li>风险等级标签 AUC ${d.quality.auc}，接近随机，基于标签的差异化策略当前不可用</li>
+                    <li>零金额申请 ${fmt(d.quality.zero_amt)} 笔（${d.quality.zero_rate}%），影响 PD/EAD 口径</li>
+                    <li>在途 ${fmt(d.funnel.reviewing)} 笔账龄未到，坏账尚未暴露，全量 PD 可能低估</li>
+                    <li>ECL 为简化口径，正式拨备需按 IFRS 9 三阶段 / CECL 全生命周期计量</li>
+                    <li>省份集中度 HHI ${d.quality.hhi}（&lt;1500 属分散），地域集中风险不显著</li>
+                </ul></div>
+            </div>
+        </div></div>`;
+
+    document.getElementById('aiBody').innerHTML =
+        kpiHtml + constraintHtml + sumHtml + ratingHtml + chartHtml + eclHtml +
+        riskDistHtml + approvalHtml + alertHtml + actionHtml + methodHtml;
+
+    renderAICharts(d);
+}
+
+function renderAICharts(d){
+    const c1 = echarts.init(document.getElementById('c_rk_pd'));
+    c1.setOption({
+        tooltip:{trigger:'axis'},
+        legend:{data:['实际坏账率(%)','申请笔数'], textStyle:{color:'#9fb2d9'}, top:0},
+        grid:{left:55, right:60, top:45, bottom:35},
+        xAxis:{type:'category', data:d.charts.risk_labels, ...AXIS},
+        yAxis:[{type:'value', name:'%', nameTextStyle:{color:'#8fa3cf'}, ...SPLIT, ...AXIS},
+               {type:'value', name:'笔', nameTextStyle:{color:'#8fa3cf'}, ...SPLIT, ...AXIS, splitLine:{show:false}}],
+        series:[
+            {name:'实际坏账率(%)', type:'bar', barWidth:34, data:d.charts.risk_pd,
+             itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#ff6b6b'},{offset:1,color:'#8a2b3a'}]), borderRadius:[4,4,0,0]},
+             label:{show:true, position:'top', color:'#ffb3b3', fontSize:11, formatter:'{c}%'}},
+            {name:'申请笔数', type:'line', yAxisIndex:1, data:d.risk_levels.map(r=>r.apps),
+             symbolSize:7, lineStyle:{width:2, color:'#42b8ff', type:'dashed'}, itemStyle:{color:'#42b8ff'}, label:{show:false}}
+        ]
+    });
+
+    const c2 = echarts.init(document.getElementById('c_prod_ai'));
+    c2.setOption({
+        tooltip:{trigger:'axis'},
+        legend:{data:['PD(%)','ECL(万元)'], textStyle:{color:'#9fb2d9'}, top:0},
+        grid:{left:55, right:60, top:45, bottom:80},
+        xAxis:{type:'category', data:d.charts.product_names, ...AXIS, axisLabel:{...AXIS.axisLabel, rotate:35, interval:0}},
+        yAxis:[{type:'value', name:'%', nameTextStyle:{color:'#8fa3cf'}, ...SPLIT, ...AXIS},
+               {type:'value', name:'万元', nameTextStyle:{color:'#8fa3cf'}, ...SPLIT, ...AXIS, splitLine:{show:false}}],
+        series:[
+            {name:'PD(%)', type:'bar', barWidth:22, data:d.charts.product_pd,
+             itemStyle:{color:'#ff6b6b', borderRadius:[3,3,0,0]}},
+            {name:'ECL(万元)', type:'line', yAxisIndex:1, data:d.charts.product_ecl,
+             symbolSize:7, lineStyle:{width:2.5, color:'#ffa94d'}, itemStyle:{color:'#ffa94d'}}
+        ]
+    });
+
+    const c3 = echarts.init(document.getElementById('c_month_ai'));
+    c3.setOption({
+        tooltip:{trigger:'axis'},
+        legend:{data:['月度坏账率(%)','申请笔数'], textStyle:{color:'#9fb2d9'}, top:0},
+        grid:{left:55, right:60, top:45, bottom:60},
+        dataZoom:[{type:'inside'}],
+        xAxis:{type:'category', data:d.charts.months, ...AXIS, axisLabel:{...AXIS.axisLabel, rotate:45}},
+        yAxis:[{type:'value', name:'%', nameTextStyle:{color:'#8fa3cf'}, ...SPLIT, ...AXIS},
+               {type:'value', name:'笔', nameTextStyle:{color:'#8fa3cf'}, ...SPLIT, ...AXIS, splitLine:{show:false}}],
+        series:[
+            {name:'申请笔数', type:'bar', yAxisIndex:1, data:d.charts.month_apps,
+             itemStyle:{color:'rgba(66,184,255,.35)'}, barWidth:'55%'},
+            {name:'月度坏账率(%)', type:'line', data:d.charts.month_pd, smooth:true,
+             symbolSize:4, lineStyle:{width:2.5, color:'#ff6b6b'}, itemStyle:{color:'#ff6b6b'},
+             areaStyle:{color:'rgba(255,107,107,.12)'}}
+        ]
+    });
+
+    const c4 = echarts.init(document.getElementById('c_funnel_ai'));
+    const f = d.charts.funnel_steps;
+    c4.setOption({
+        tooltip:{trigger:'item', formatter:p=>`${p.name}：${p.value.toLocaleString('zh-CN')} 笔`},
+        series:[{
+            type:'funnel', left:'8%', right:'8%', top:40, bottom:20, minSize:'32%',
+            label:{color:'#dbe4f7', formatter:p=>`${p.name}\n${p.value.toLocaleString('zh-CN')} 笔`},
+            itemStyle:{borderWidth:0},
+            data:f.map((x,i)=>({...x, itemStyle:{
+                color:['#4a7bff','#42b8ff','#6fe08a','#ffa94d'][i % 4], opacity: 1 - i*0.12
+            }}))
+        }]
+    });
+
+    aiChartInstances.push(c1, c2, c3, c4);
+}
+
+/* 导出为独立 HTML 报告 */
+function exportAIReport(){
+    if(!aiData){ return alert('报告尚未生成，请先点击 AI 分析'); }
+    const d = aiData;
+    const t = (head, rows) => `<table><thead><tr>${head.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<title>信用风险分析报告 ${d.generated_at}</title><style>
+body{font-family:"Microsoft Yahei",sans-serif;max-width:1000px;margin:40px auto;color:#222;line-height:1.7;padding:0 20px}
+h1{font-size:24px;border-bottom:3px solid #8a2b3a;padding-bottom:10px}
+h2{font-size:17px;margin-top:28px;color:#8a2b3a;border-left:4px solid #8a2b3a;padding-left:10px}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0}
+th,td{border:1px solid #ccc;padding:7px 9px;text-align:center}
+th{background:#fbeeee}
+ol,ul{padding-left:22px}
+.meta{color:#666;font-size:13px}
+.kpi{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
+.kpi div{flex:1;min-width:130px;border:1px solid #ddd;border-radius:8px;padding:12px;text-align:center}
+.kpi b{display:block;font-size:19px;color:#8a2b3a}
+.alert{border-left:4px solid #d32f2f;background:#fdf3f3;padding:10px 14px;margin:10px 0;border-radius:6px}
+.alert.o{border-left-color:#ed8b00;background:#fdf8ef}
+.alert.y{border-left-color:#c9a227;background:#fdfbef}
+.constr{background:#eef3fb;border:1px dashed #9bb4dd;padding:10px 14px;border-radius:6px;color:#33507f;font-size:13px}
+</style></head><body>
+<h1>智能风控 · 信用风险分析报告</h1>
+<div class="meta">生成时间：${d.generated_at} ｜ 数据版本：${d.data_version || '-'} ｜ 方法论：${d.skill} ｜ 数据：${fmt(d.data.applications)} 笔申请 / ${fmt(d.data.customers)} 客户 / 观察期 ${d.data.period}</div>
+<div class="constr" style="margin-top:14px">分析约束：${esc(d.constraint)}</div>
+<div class="kpi">
+<div><b>${d.kpi.pd_overall}%</b>全量坏账率</div>
+<div><b>${d.kpi.pd_mature}%</b>成熟口径 PD</div>
+<div><b>${d.kpi.lgd}%</b>加权 LGD</div>
+<div><b>${fmt(d.kpi.ead_wan)} 万</b>在贷敞口 EAD</div>
+<div><b>${fmt(d.kpi.ecl_wan)} 万</b>预期信用损失 ECL</div>
+<div><b>${esc(d.kpi.rating)}</b>组合内部评级</div>
+</div>
+<h2>一、执行摘要</h2><ol>${d.summary.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>
+<h2>二、关键风险驱动因子</h2>
+${t(['风险驱动因子','当前值','基准/对比口径','趋势','重要性'],
+    d.drivers.map(x=>[x.driver,x.current,x.benchmark,x.trend,x.materiality]))}
+<h2>三、预期信用损失 ECL</h2>
+<p>PD ${d.ecl.pd}% × LGD ${d.ecl.lgd}% × EAD ${fmt(d.ecl.ead_wan)} 万元 = ECL <b>${fmt(d.ecl.ecl_wan)} 万元</b>（占敞口 ${d.ecl.ecl_rate}%）</p>
+${t(['产品','PD','LGD','EAD(万)','ECL(万)','坏账金额(万)'],
+    d.products.map(p=>[p.name,p.pd+'%',p.lgd+'%',fmt(p.ead_wan),fmt(p.ecl_wan),fmt(p.bad_amt_wan)]))}
+<h3>敏感性分析</h3>
+${t(['情景','PD','LGD','ECL(万)','较基准变动(万)'],
+    d.sensitivity.map(s=>[s.scenario,s.pd+'%',s.lgd+'%',fmt(s.ecl_wan),(s.delta_wan>0?'+':'')+fmt(s.delta_wan)]))}
+<h2>四、客户风险分布</h2>
+${t(['风险等级','客户数','客户占比','申请笔数','实际坏账率 PD','坏账笔数','坏账金额(万)'],
+    d.risk_levels.map(r=>[r.level,fmt(r.customers),r.cust_share+'%',fmt(r.apps),r.pd+'%',fmt(r.bad_cnt),fmt(r.bad_amt_wan)]))}
+<h2>五、贷款审批情况</h2>
+${t(['指标','数值'],[
+    ['申请总量', fmt(d.funnel.total)+' 笔'],['审批通过率', d.funnel.pass_rate+'%'],
+    ['拒绝率', d.funnel.reject_rate+'%'],['在途审核', fmt(d.funnel.reviewing)+' 笔'],
+    ['平均处理时长', d.funnel.avg_hours+' h（中位数 '+d.funnel.median_hours+' h）'],
+    ['超 48h 占比', d.funnel.sla_rate+'%（'+fmt(d.funnel.over_sla_cnt)+' 笔）']])}
+<h3>金额分档 PD</h3>
+${t(['金额区间','笔数','坏账率 PD','金额合计(万)'], d.amount_bins.map(a=>[a.bin,fmt(a.apps),a.pd+'%',fmt(a.amt_wan)]))}
+<h3>年度 PD 迁徙</h3>
+${t(['年度','申请笔数','全量 PD','成熟口径 PD','坏账金额(万)'],
+    d.years.map(y=>[y.year,fmt(y.apps),y.pd_all+'%',y.pd_mature===null?'-':y.pd_mature+'%',fmt(y.bad_amt_wan)]))}
+<h2>六、风险预警清单</h2>
+${d.alerts.map(a=>`<div class="alert ${a.level==='红色'?'':(a.level==='橙色'?'o':'y')}">
+<b>【${esc(a.level)}】${esc(a.title)}</b><br>${esc(a.detail)}<br>
+<span style="color:#666;font-size:12px">关键指标：${esc(a.metric)}</span><br>
+<span style="color:#2e7d32;font-size:12.5px">建议动作：${esc(a.action)}</span></div>`).join('')}
+<h2>七、风控建议</h2>
+${t(['时间窗','责任部门','关键动作','考核指标'], d.actions.map(a=>[a.when,a.owner,a.task,a.kpi]))}
+<h2>八、方法论与假设</h2>
+<h3>分析框架</h3><ol>${d.methodology.map(m=>`<li>${esc(m)}</li>`).join('')}</ol>
+<h3>关键假设</h3><ul>${d.assumptions.map(a=>`<li>${esc(a)}</li>`).join('')}</ul>
+<div class="meta" style="margin-top:30px;border-top:1px solid #ddd;padding-top:12px">本报告由 WorkBuddy 基于 credit-risk-explanation 方法论自动生成，模型参数可在 risk_analysis.py 中调整。</div>
+</body></html>`;
+    const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `智能风控信用风险分析报告_${d.generated_at.replace(/[: ]/g,'-')}.html`;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
+}
+</script>
+</body>
+</html>

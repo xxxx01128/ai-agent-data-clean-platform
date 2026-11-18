@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>金融风控报表导航</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: radial-gradient(1200px 600px at 50% 0%, #162447 0%, #0b1328 60%);
+            min-height: 100vh; color: #fff; font-family: "Microsoft Yahei", sans-serif;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        h1 { font-size: 34px; margin-bottom: 8px; letter-spacing: 2px; }
+        .sub { color: #7d8db8; margin-bottom: 40px; }
+        .cards { display: flex; gap: 28px; flex-wrap: wrap; justify-content: center; }
+        .card {
+            width: 240px; height: 200px; background: linear-gradient(160deg, #162447, #1b2c5a);
+            border: 1px solid #2b4075; border-radius: 14px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; cursor: pointer; transition: .25s;
+        }
+        .card:hover { transform: translateY(-6px); border-color: #4a7bff; box-shadow: 0 10px 30px rgba(74,123,255,.25); }
+        .card .icon { font-size: 40px; margin-bottom: 12px; }
+        .card .name { font-size: 20px; margin-bottom: 8px; }
+        .card .desc { font-size: 13px; color: #8fa3cf; }
+        a { text-decoration: none; color: #fff; }
+    </style>
+</head>
+<body>
+    <h1>🏦 金融风控综合报表平台</h1>
+    <div class="sub">基于星型模型 · 多维度下钻分析</div>
+    <div class="cards">
+        <a href="/risk"><div class="card">
+            <div class="icon">🔒</div>
+            <div class="name">智能风控</div>
+            <div class="desc">风险等级 · 申请状态 · 坏账分析</div>
+        </div></a>
+        <a href="/marketing"><div class="card">
+            <div class="icon">👥</div>
+            <div class="name">精准营销 360°</div>
+            <div class="desc">客户画像 · 留存 · AUM分布</div>
+        </div></a>
+        <a href="/business"><div class="card">
+            <div class="icon">📈</div>
+            <div class="name">经营突破</div>
+            <div class="desc">交易趋势 · 省份 · 产品销售</div>
+        </div></a>
+        <a href="/upload"><div class="card">
+            <div class="icon">📤</div>
+            <div class="name">数据上传</div>
+            <div class="desc">上传文件 · 自动清洗 · 数据更新</div>
+        </div></a>
+    </div>
+</body>
+</html>
